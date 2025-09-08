@@ -69,6 +69,7 @@ model Post {
   communityId  String
   comments     Comment[]
   votes        PostVote[]
+  views        PostView[]
 }
 
 model Comment {
@@ -108,4 +109,11 @@ model CommentVote {
   commentId String
 
   @@unique([userId, commentId])
+}
+
+model PostView {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id])
+  postId    String
 }

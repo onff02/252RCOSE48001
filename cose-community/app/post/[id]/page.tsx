@@ -27,6 +27,9 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
 	});
 	if (!post) return <div>Not found</div>;
 
+	// Record a view for this post
+	await prisma.postView.create({ data: { postId: id } });
+
 	const comments = await prisma.comment.findMany({
 		where: { postId: post.id },
 		orderBy: { createdAt: "asc" },
