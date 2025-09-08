@@ -4,15 +4,17 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ConfirmSubmit } from "@/app/components/ConfirmSubmit";
 
-export async function generateMetadata({ params }: { params: { id: string } }) {
-	const post = await prisma.post.findUnique({ where: { id: params.id } });
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+	const { id } = await params;
+	const post = await prisma.post.findUnique({ where: { id } });
 	return { title: post ? post.title : "Post" };
 }
 
-export default async function PostPage({ params }: { params: { id: string } }) {
+export default async function PostPage({ params }: { params: Promise<{ id: string }> }) {
+	const { id } = await params;
 	const currentUser = await getCurrentUser();
 	const post = await prisma.post.findUnique({
-		where: { id: params.id },
+		where: { id },
 		select: {
 			id: true,
 			title: true,
@@ -43,22 +45,22 @@ export default async function PostPage({ params }: { params: { id: string } }) {
 		const content = String(formData.get("content") || "");
 		const user = await getCurrentUser();
 		if (!user) return;
-		await prisma.comment.create({ data: { content, authorId: user.id, postId: params.id } });
-		revalidatePath(`/post/${params.id}`);
+		await prisma.comment.create({ data: { content, authorId: user.id, postId: id } });
+		revalidatePath(`/post/${id}`);
 	}
 
 	async function deletePost() {
 		"use server";
 		const user = await getCurrentUser();
 		if (!user) return;
-		const postRecord = await prisma.post.findUnique({ where: { id: params.id }, select: { id: true, authorId: true, community: { select: { slug: true } } } });
+		const postRecord = await prisma.post.findUnique({ where: { id }, select: { id: true, authorId: true, community: { select: { slug: true } } } });
 		if (!postRecord) return;
 		if (postRecord.authorId !== user.id) return;
 		await prisma.$transaction([
-			prisma.commentVote.deleteMany({ where: { comment: { postId: params.id } } }),
-			prisma.comment.deleteMany({ where: { postId: params.id } }),
-			prisma.postVote.deleteMany({ where: { postId: params.id } }),
-			prisma.post.delete({ where: { id: params.id } }),
+			prisma.commentVote.deleteMany({ where: { comment: { postId: id } } }),
+			prisma.comment.deleteMany({ where: { postId: id } }),
+			prisma.postVote.deleteMany({ where: { postId: id } }),
+			prisma.post.delete({ where: { id } }),
 		]);
 		revalidatePath(`/c/${postRecord.community.slug}`);
 		redirect(`/c/${postRecord.community.slug}`);
@@ -68,17 +70,17 @@ export default async function PostPage({ params }: { params: { id: string } }) {
 		"use server";
 		const user = await getCurrentUser();
 		if (!user) return;
-		const existing = await prisma.postVote.findUnique({ where: { userId_postId: { userId: user.id, postId: params.id } } });
+		const existing = await prisma.postVote.findUnique({ where: { userId_postId: { userId: user.id, postId: id } } });
 		if (existing?.value === 1) {
-			await prisma.postVote.delete({ where: { userId_postId: { userId: user.id, postId: params.id } } });
+			await prisma.postVote.delete({ where: { userId_postId: { userId: user.id, postId: id } } });
 		} else {
 			await prisma.postVote.upsert({
-				where: { userId_postId: { userId: user.id, postId: params.id } },
+				where: { userId_postId: { userId: user.id, postId: id } },
 				update: { value: 1 },
-				create: { userId: user.id, postId: params.id, value: 1 },
+				create: { userId: user.id, postId: id, value: 1 },
 			});
 		}
-		revalidatePath(`/post/${params.id}`);
+		revalidatePath(`/post/${id}`);
 	}
 
 	async function voteComment(formData: FormData) {
@@ -97,7 +99,7 @@ export default async function PostPage({ params }: { params: { id: string } }) {
 				create: { userId: user.id, commentId, value: 1 },
 			});
 		}
-		revalidatePath(`/post/${params.id}`);
+		revalidatePath(`/post/${id}`);
 	}
 
 	async function deleteComment(formData: FormData) {
@@ -116,7 +118,7 @@ export default async function PostPage({ params }: { params: { id: string } }) {
 			await prisma.commentVote.deleteMany({ where: { commentId } });
 			await prisma.comment.delete({ where: { id: commentId } });
 		}
-		revalidatePath(`/post/${params.id}`);
+		revalidatePath(`/post/${id}`);
 	}
 
 	const score = post.votes.reduce((a, v) => a + v.value, 0);
