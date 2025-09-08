@@ -100,6 +100,25 @@ export default async function PostPage({ params }: { params: { id: string } }) {
 		revalidatePath(`/post/${params.id}`);
 	}
 
+	async function deleteComment(formData: FormData) {
+		"use server";
+		const user = await getCurrentUser();
+		if (!user) return;
+		const commentId = String(formData.get("commentId") || "");
+		if (!commentId) return;
+		const existing = await prisma.comment.findUnique({ where: { id: commentId }, select: { id: true, authorId: true } });
+		if (!existing) return;
+		if (existing.authorId !== user.id) return;
+		const childrenCount = await prisma.comment.count({ where: { parentId: commentId } });
+		if (childrenCount > 0) {
+			await prisma.comment.update({ where: { id: commentId }, data: { content: "[deleted]" } });
+		} else {
+			await prisma.commentVote.deleteMany({ where: { commentId } });
+			await prisma.comment.delete({ where: { id: commentId } });
+		}
+		revalidatePath(`/post/${params.id}`);
+	}
+
 	const score = post.votes.reduce((a, v) => a + v.value, 0);
 	const likedByMe = !!(currentUser && post.votes.some((v) => v.userId === currentUser.id && v.value === 1));
 
@@ -150,6 +169,14 @@ export default async function PostPage({ params }: { params: { id: string } }) {
 											{cLikedByMe ? "Liked" : "Like"}
 										</button>
 									</form>
+									{currentUser && currentUser.username === c.author.username && (
+										<form id={`delete-comment-${c.id}`} action={deleteComment}>
+											<input type="hidden" name="commentId" value={c.id} />
+											<ConfirmSubmit formId={`delete-comment-${c.id}`} confirmMessage="Delete this comment? This may be irreversible." className="px-2 py-1 rounded border text-xs text-red-600 hover:bg-red-50">
+												Delete
+											</ConfirmSubmit>
+										</form>
+									)}
 								</div>
 							</li>
 						);

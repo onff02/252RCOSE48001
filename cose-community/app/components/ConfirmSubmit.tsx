@@ -14,7 +14,6 @@ export function ConfirmSubmit({ formId, confirmMessage, children, className }: P
       type="button"
       className={className}
       onClick={() => {
-        // eslint-disable-next-line no-alert
         if (confirm(confirmMessage)) {
           const form = document.getElementById(formId) as HTMLFormElement | null;
           form?.requestSubmit();
