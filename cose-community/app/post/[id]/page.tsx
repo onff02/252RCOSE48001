@@ -137,7 +137,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
 	return (
 		<div className="space-y-6">
 			<div>
-				<div className="text-xs text-gray-500 mb-1">c/{post.community.name} • by {post.author.username} • {new Date(post.createdAt).toLocaleString()}</div>
+				<div className="text-xs text-gray-500 mb-1">c/{post.community.name} • by <a href={`/u/${post.author.username}`} className="underline">{post.author.username}</a> • {new Date(post.createdAt).toLocaleString()}</div>
 				<h1 className="text-xl font-semibold">{post.title}</h1>
 				<div className="whitespace-pre-wrap mt-2">{post.content}</div>
 				<div className="flex items-center gap-3 mt-2">
@@ -181,7 +181,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
 						const cDislikes = c.votes.filter((v) => v.value === -1).length;
 						return (
 							<li key={c.id} className="border rounded p-3">
-								<div className="text-xs text-gray-500 mb-1">by {c.author.username} • {new Date(c.createdAt).toLocaleString()}</div>
+								<div className="text-xs text-gray-500 mb-1">by <a href={`/u/${c.author.username}`} className="underline">{c.author.username}</a> • {new Date(c.createdAt).toLocaleString()}</div>
 								<div>{c.content}</div>
 								<div className="flex items-center gap-3 mt-1">
 									<div className="text-xs text-gray-600">Score {cScore} • Likes {cLikes} • Dislikes {cDislikes}</div>

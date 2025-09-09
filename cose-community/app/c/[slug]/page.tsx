@@ -92,7 +92,7 @@ export default async function CommunityPage({ params, searchParams }: { params: 
 					<li key={p.id} className="border rounded p-4">
 						<Link href={`/post/${p.id}`} className="font-medium hover:underline">{p.title}</Link>
 						<div className="text-xs text-gray-600 mt-1">
-							by {p.author.username} • Score {p.score} • {new Date(p.createdAt).toLocaleString()}
+							by <Link href={`/u/${p.author.username}`} className="underline">{p.author.username}</Link> • Score {p.score} • {new Date(p.createdAt).toLocaleString()}
 							{typeof p.viewCount === "number" && <> • Views {p.viewCount}</>}
 							{typeof p.popularity === "number" && <> • Popular {p.popularity}</>}
 						</div>

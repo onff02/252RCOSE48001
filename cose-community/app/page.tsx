@@ -76,7 +76,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ s
             <li key={p.id} className="border rounded p-4">
               <div className="text-xs text-gray-500 mb-1">
                 <Link href={`/c/${p.community.slug}`} className="underline">{p.community.name}</Link>
-                {" "}• posted by {p.author.username}
+                {" "}• posted by <Link href={`/u/${p.author.username}`} className="underline">{p.author.username}</Link>
                 {" "}• {new Date(p.createdAt).toLocaleString()}
               </div>
               <Link href={`/post/${p.id}`} className="text-lg font-medium hover:underline">
