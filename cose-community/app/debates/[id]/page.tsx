@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth/session";
 import { revalidatePath } from "next/cache";
+import { RecommendClient } from "./RecommendClient";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -44,8 +45,9 @@ function buildTree(opinions: OpinionRow[]): TreeNode[] {
   return roots;
 }
 
-export default async function DebatePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function DebatePage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams: Promise<{ sort?: string }> }) {
   const { id } = await params;
+  const { sort } = await searchParams;
   const topic = await prisma.topic.findUnique({ where: { id }, select: { id: true, title: true, description: true } });
   if (!topic) return <div>Not found</div>;
 
@@ -63,7 +65,28 @@ export default async function DebatePage({ params }: { params: Promise<{ id: str
     },
   });
 
-  const tree = buildTree(opinions);
+  let tree = buildTree(opinions);
+
+  // Sorting of root opinions
+  function countLikes(votes: { value: number }[]): number { return votes.filter(v => v.value === 1).length; }
+  function countDislikes(votes: { value: number }[]): number { return votes.filter(v => v.value === -1).length; }
+  const isBest = sort === "best";
+  const isControversial = sort === "controversial";
+  const CONTROVERSIAL_THRESHOLD = 3;
+
+  if (isBest) {
+    tree = [...tree].sort((a, b) => {
+      const as = a.votes.reduce((acc, v) => acc + v.value, 0);
+      const bs = b.votes.reduce((acc, v) => acc + v.value, 0);
+      return bs - as;
+    });
+  } else if (isControversial) {
+    tree = [...tree].sort((a, b) => {
+      const amin = Math.min(countLikes(a.votes), countDislikes(a.votes));
+      const bmin = Math.min(countLikes(b.votes), countDislikes(b.votes));
+      return bmin - amin;
+    });
+  }
 
   async function addOpinion(formData: FormData) {
     "use server";
@@ -98,12 +121,19 @@ export default async function DebatePage({ params }: { params: Promise<{ id: str
 
   function renderNode(node: TreeNode, depth = 0) {
     const score = node.votes.reduce((a, v) => a + v.value, 0);
+    const likes = countLikes(node.votes);
+    const dislikes = countDislikes(node.votes);
+    const isRoot = depth === 0;
+    const controversialBadge = Math.min(likes, dislikes) >= CONTROVERSIAL_THRESHOLD;
     return (
       <li key={node.id} className="border rounded p-3" style={{ marginLeft: depth * 16 }}>
         <div className="text-xs text-gray-500 mb-1">{node.side === "PRO" ? "Pro" : "Con"} • by {node.author.username} • {new Date(node.createdAt).toLocaleString()}</div>
         <div>{node.content}</div>
         <div className="flex items-center gap-2 mt-1 text-xs">
-          <div className="text-gray-600">Score {score}</div>
+          <div className="text-gray-600">Score {score} • Likes {likes} • Dislikes {dislikes}</div>
+          {isRoot && controversialBadge && (
+            <span className="px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 border border-yellow-300">Controversial</span>
+          )}
           <form action={voteOpinion}>
             <input type="hidden" name="opinionId" value={node.id} />
             <input type="hidden" name="value" value="1" />
@@ -146,6 +176,8 @@ export default async function DebatePage({ params }: { params: Promise<{ id: str
         <h2 className="font-medium mb-2">Add an opinion</h2>
         <form action={addOpinion} className="space-y-2">
           <textarea name="content" placeholder="Write your opinion" className="w-full border rounded px-3 py-2" />
+          {/* Live recommendations from Wikipedia */}
+          <RecommendClient text={""} />
           <div className="flex gap-2 text-sm">
             <label><input type="radio" name="side" value="PRO" defaultChecked /> Pro</label>
             <label><input type="radio" name="side" value="CON" /> Con</label>
@@ -155,6 +187,11 @@ export default async function DebatePage({ params }: { params: Promise<{ id: str
       </div>
       <div>
         <h2 className="font-medium mb-2">Opinions</h2>
+        <div className="flex items-center gap-2 text-sm mb-2">
+          <a className="px-2 py-1 border rounded" href={`/debates/${topic.id}?sort=recent`}>Recent</a>
+          <a className="px-2 py-1 border rounded" href={`/debates/${topic.id}?sort=best`}>Best</a>
+          <a className="px-2 py-1 border rounded" href={`/debates/${topic.id}?sort=controversial`}>Controversial</a>
+        </div>
         <ul className="space-y-2">
           {tree.map((n) => renderNode(n))}
         </ul>
