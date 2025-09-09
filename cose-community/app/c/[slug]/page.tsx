@@ -9,14 +9,16 @@ function getOrderClause(sort: string | null) {
   return { createdAt: "desc" as const };
 }
 
-export async function generateMetadata({ params }: { params: { slug: string } }) {
-	const community = await prisma.community.findUnique({ where: { slug: params.slug } });
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+	const { slug } = await params;
+	const community = await prisma.community.findUnique({ where: { slug } });
 	return { title: community ? community.name : "Community" };
 }
 
-export default async function CommunityPage({ params, searchParams }: { params: { slug: string }, searchParams: Promise<{ sort?: string }> }) {
+export default async function CommunityPage({ params, searchParams }: { params: Promise<{ slug: string }>, searchParams: Promise<{ sort?: string }> }) {
+	const { slug } = await params;
 	const community = await prisma.community.findUnique({
-		where: { slug: params.slug },
+		where: { slug },
 		select: { id: true, name: true, slug: true, title: true, description: true },
 	});
 	if (!community) return <div>Not found</div>;
@@ -29,10 +31,10 @@ export default async function CommunityPage({ params, searchParams }: { params: 
 		if (!user) return;
 		const mod = moderateText(`${title}\n${content}`);
 		if (mod.isSevere) return; // block severe content
-		const community = await prisma.community.findUnique({ where: { slug: params.slug } });
+		const community = await prisma.community.findUnique({ where: { slug } });
 		if (!community) return;
 		await prisma.post.create({ data: { title, content, caution: mod.isCaution, authorId: user.id, communityId: community.id } });
-		revalidatePath(`/c/${params.slug}`);
+		revalidatePath(`/c/${slug}`);
 	}
 
 	const { sort } = await searchParams;
