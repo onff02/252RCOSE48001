@@ -17,10 +17,14 @@ export async function POST(req: NextRequest) {
 			where: {
 				OR: [{ email: identifier }, { username: identifier }],
 			},
-			select: { id: true, email: true, username: true, passwordHash: true },
+			select: { id: true, email: true, username: true, passwordHash: true, banned: true },
 		});
 		if (!user) {
 			return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+		}
+
+		if (user.banned) {
+			return NextResponse.json({ error: "Account banned" }, { status: 403 });
 		}
 
 		const ok = await verifyPassword(password, user.passwordHash);

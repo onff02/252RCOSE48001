@@ -128,6 +128,25 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
 		revalidatePath(`/post/${id}`);
 	}
 
+	async function reportPost(formData: FormData) {
+		"use server";
+		const user = await getCurrentUser();
+		if (!user) return;
+		const reason = String(formData.get("reason") || "");
+		await prisma.report.create({ data: { reporterId: user.id, postId: id, reason } });
+		revalidatePath(`/post/${id}`);
+	}
+
+	async function reportComment(formData: FormData) {
+		"use server";
+		const user = await getCurrentUser();
+		if (!user) return;
+		const commentId = String(formData.get("commentId") || "");
+		const reason = String(formData.get("reason") || "");
+		await prisma.report.create({ data: { reporterId: user.id, commentId, reason } });
+		revalidatePath(`/post/${id}`);
+	}
+
 	const score = post.votes.reduce((a, v) => a + v.value, 0);
 	const likesCount = post.votes.filter((v) => v.value === 1).length;
 	const dislikesCount = post.votes.filter((v) => v.value === -1).length;
@@ -160,6 +179,15 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
 								Delete
 							</ConfirmSubmit>
 						</form>
+					)}
+					{currentUser && (
+						<details className="ml-2">
+							<summary className="cursor-pointer text-xs underline">Report</summary>
+							<form action={reportPost} className="mt-1 flex items-center gap-1 text-xs">
+								<input name="reason" placeholder="Reason" className="border px-2 py-1 rounded" />
+								<button className="px-2 py-1 border rounded">Submit</button>
+							</form>
+						</details>
 					)}
 				</div>
 			</div>
@@ -206,6 +234,16 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
 												Delete
 											</ConfirmSubmit>
 										</form>
+									)}
+									{currentUser && (
+										<details>
+											<summary className="cursor-pointer text-xs underline">Report</summary>
+											<form action={reportComment} className="mt-1 flex items-center gap-1 text-xs">
+												<input type="hidden" name="commentId" value={c.id} />
+												<input name="reason" placeholder="Reason" className="border px-2 py-1 rounded" />
+												<button className="px-2 py-1 border rounded">Submit</button>
+											</form>
+										</details>
 									)}
 								</div>
 							</li>

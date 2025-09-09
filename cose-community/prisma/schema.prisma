@@ -17,6 +17,8 @@ model User {
   email          String        @unique
   username       String        @unique
   passwordHash   String
+  role           UserRole      @default(USER)
+  banned         Boolean       @default(false)
   communitiesCreated Community[] @relation("UserCreatedCommunities")
   memberships    Membership[]
   posts          Post[]
@@ -26,6 +28,9 @@ model User {
   topicsCreated  Topic[]
   opinions       Opinion[]
   opinionVotes   OpinionVote[]
+  reportsFiled   Report[]      @relation("Reporter")
+  reportsResolved Report[]     @relation("ResolvedBy")
+  reportsReceived Report[]     @relation("ReportedUser")
 }
 
 model Community {
@@ -73,6 +78,7 @@ model Post {
   comments     Comment[]
   votes        PostVote[]
   views        PostView[]
+  reports      Report[]
 }
 
 model Comment {
@@ -88,6 +94,7 @@ model Comment {
   parentId    String?
   children    Comment[]  @relation("CommentToComment")
   votes       CommentVote[]
+  reports     Report[]
 }
 
 model PostVote {
@@ -165,4 +172,35 @@ model OpinionVote {
 enum DebateSide {
   PRO
   CON
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum ReportStatus {
+  OPEN
+  RESOLVED
+}
+
+model Report {
+  id             String      @id @default(cuid())
+  createdAt      DateTime    @default(now())
+  reporter       User        @relation("Reporter", fields: [reporterId], references: [id])
+  reporterId     String
+  reportedUser   User?       @relation("ReportedUser", fields: [reportedUserId], references: [id])
+  reportedUserId String?
+  post           Post?       @relation(fields: [postId], references: [id])
+  postId         String?
+  comment        Comment?    @relation(fields: [commentId], references: [id])
+  commentId      String?
+  reason         String
+  status         ReportStatus @default(OPEN)
+  resolvedAt     DateTime?
+  resolvedBy     User?        @relation("ResolvedBy", fields: [resolvedById], references: [id])
+  resolvedById   String?
+
+  @@index([postId])
+  @@index([commentId])
 }
