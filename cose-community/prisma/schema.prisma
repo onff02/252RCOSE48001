@@ -136,6 +136,7 @@ model Topic {
   updatedAt   DateTime   @updatedAt
   title       String
   description String?
+  category    TopicCategory @default(DOMESTIC)
   creator     User       @relation(fields: [creatorId], references: [id])
   creatorId   String
   opinions    Opinion[]
@@ -172,6 +173,12 @@ model OpinionVote {
 enum DebateSide {
   PRO
   CON
+}
+
+enum TopicCategory {
+  DOMESTIC
+  INTERNATIONAL
+  ECONOMY
 }
 
 enum UserRole {
