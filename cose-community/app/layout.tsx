@@ -40,7 +40,8 @@ export default async function RootLayout({
             <div className="flex items-center gap-3 text-sm">
               {user ? (
                 <>
-                  <span className="text-gray-600">{user.username}</span>
+                  <Link href={`/u/${user.username}`} className="text-gray-600 underline">{user.username}</Link>
+                  <Link href="/me" className="px-3 py-1.5 rounded border hover:bg-gray-100 dark:hover:bg-gray-900">My profile</Link>
                   <LogoutButton />
                 </>
               ) : (
