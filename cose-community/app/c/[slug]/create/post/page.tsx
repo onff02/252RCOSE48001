@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth/session";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { moderateText } from "@/lib/moderation";
 
@@ -24,6 +25,7 @@ export default async function CreateCommunityPostPage({ params }: { params: Prom
     if (mod.isSevere || !title || !content) return;
     await prisma.post.create({ data: { title, content, caution: mod.isCaution, communityId: comm.id, authorId: me.id } });
     revalidatePath(`/c/${slug}`);
+    redirect(`/c/${slug}`);
   }
 
   return (
