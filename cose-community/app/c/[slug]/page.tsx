@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth/session";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
+import { moderateText } from "@/lib/moderation";
 
 function getOrderClause(sort: string | null) {
   if (sort === "views") return { createdAt: "desc" as const };
@@ -26,9 +27,11 @@ export default async function CommunityPage({ params, searchParams }: { params: 
 		const content = String(formData.get("content") || "");
 		const user = await getCurrentUser();
 		if (!user) return;
+		const mod = moderateText(`${title}\n${content}`);
+		if (mod.isSevere) return; // block severe content
 		const community = await prisma.community.findUnique({ where: { slug: params.slug } });
 		if (!community) return;
-		await prisma.post.create({ data: { title, content, authorId: user.id, communityId: community.id } });
+		await prisma.post.create({ data: { title, content, caution: mod.isCaution, authorId: user.id, communityId: community.id } });
 		revalidatePath(`/c/${params.slug}`);
 	}
 
@@ -36,7 +39,7 @@ export default async function CommunityPage({ params, searchParams }: { params: 
 	const now = new Date();
 	const since24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 	const isPopular = sort === "popular";
-	const isViews = sort === "views";
+//	const isViews = sort === "views";
 
 	const posts = await prisma.post.findMany({
 		where: { communityId: community.id },
@@ -95,6 +98,7 @@ export default async function CommunityPage({ params, searchParams }: { params: 
 							by <Link href={`/u/${p.author.username}`} className="underline">{p.author.username}</Link> • Score {p.score} • {new Date(p.createdAt).toLocaleString()}
 							{typeof p.viewCount === "number" && <> • Views {p.viewCount}</>}
 							{typeof p.popularity === "number" && <> • Popular {p.popularity}</>}
+							{/* caution badge will be shown on post page where we have field */}
 						</div>
 					</li>
 				))}

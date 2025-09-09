@@ -28,6 +28,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       reportedUser: { select: { username: true } },
       post: { select: { id: true, title: true } },
       comment: { select: { id: true, content: true } },
+      opinion: { select: { id: true, content: true } },
     },
   });
   const hasMore = reports.length === take;
@@ -101,6 +102,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
               {r.post && <div className="text-sm">Post: <a href={`/post/${r.post.id}`} className="underline">{r.post.title}</a></div>}
               {r.comment && <div className="text-sm">Comment: {r.comment.content.slice(0, 80)}...</div>}
               {r.reportedUser && <div className="text-sm">Reported user: {r.reportedUser.username}</div>}
+              {r.opinion && <div className="text-sm">Opinion: {r.opinion.content.slice(0, 120)}...</div>}
               {r.status === "OPEN" && (
                 <form action={resolveReport} className="mt-2">
                   <input type="hidden" name="id" value={r.id} />

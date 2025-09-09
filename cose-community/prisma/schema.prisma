@@ -71,6 +71,7 @@ model Post {
   updatedAt    DateTime    @updatedAt
   title        String
   content      String
+  caution      Boolean     @default(false)
   author       User        @relation(fields: [authorId], references: [id])
   authorId     String
   community    Community   @relation(fields: [communityId], references: [id])
@@ -86,6 +87,7 @@ model Comment {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   content     String
+  caution     Boolean    @default(false)
   author      User       @relation(fields: [authorId], references: [id])
   authorId    String
   post        Post       @relation(fields: [postId], references: [id])
@@ -147,6 +149,7 @@ model Opinion {
   createdAt  DateTime     @default(now())
   updatedAt  DateTime     @updatedAt
   content    String
+  caution    Boolean      @default(false)
   side       DebateSide
   author     User         @relation(fields: [authorId], references: [id])
   authorId   String
@@ -156,6 +159,7 @@ model Opinion {
   parentId   String?
   children   Opinion[]    @relation("OpinionToOpinion")
   votes      OpinionVote[]
+  reports    Report[]
 }
 
 model OpinionVote {
@@ -202,6 +206,8 @@ model Report {
   postId         String?
   comment        Comment?    @relation(fields: [commentId], references: [id])
   commentId      String?
+  opinion        Opinion?    @relation(fields: [opinionId], references: [id])
+  opinionId      String?
   reason         String
   status         ReportStatus @default(OPEN)
   resolvedAt     DateTime?
@@ -210,4 +216,5 @@ model Report {
 
   @@index([postId])
   @@index([commentId])
+  @@index([opinionId])
 }

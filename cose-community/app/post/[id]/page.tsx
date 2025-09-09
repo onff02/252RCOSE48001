@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ConfirmSubmit } from "@/app/components/ConfirmSubmit";
+import { moderateText } from "@/lib/moderation";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
 	const { id } = await params;
@@ -19,6 +20,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
 			id: true,
 			title: true,
 			content: true,
+			caution: true,
 			createdAt: true,
 			community: { select: { slug: true, name: true } },
 			author: { select: { id: true, username: true } },
@@ -36,6 +38,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
 		select: {
 			id: true,
 			content: true,
+			caution: true,
 			createdAt: true,
 			parentId: true,
 			author: { select: { username: true } },
@@ -48,7 +51,9 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
 		const content = String(formData.get("content") || "");
 		const user = await getCurrentUser();
 		if (!user) return;
-		await prisma.comment.create({ data: { content, authorId: user.id, postId: id } });
+		const mod = moderateText(content);
+		if (mod.isSevere) return;
+		await prisma.comment.create({ data: { content, caution: mod.isCaution, authorId: user.id, postId: id } });
 		revalidatePath(`/post/${id}`);
 	}
 
@@ -161,6 +166,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
 				<div className="whitespace-pre-wrap mt-2">{post.content}</div>
 				<div className="flex items-center gap-3 mt-2">
 					<div className="text-xs text-gray-600">Score {score} • Likes {likesCount} • Dislikes {dislikesCount}</div>
+					{post.caution && (<span className="px-2 py-0.5 rounded bg-orange-100 text-orange-800 border border-orange-300 text-xs">Caution</span>)}
 					<form action={votePost}>
 						<input type="hidden" name="value" value="1" />
 						<button className={`px-2 py-1 rounded border text-xs ${likedByMe ? "bg-green-600 text-white border-green-600" : "hover:bg-gray-100 dark:hover:bg-gray-900"}`}>
@@ -210,7 +216,10 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
 						return (
 							<li key={c.id} className="border rounded p-3">
 								<div className="text-xs text-gray-500 mb-1">by <a href={`/u/${c.author.username}`} className="underline">{c.author.username}</a> • {new Date(c.createdAt).toLocaleString()}</div>
-								<div>{c.content}</div>
+								<div className="flex items-center gap-2">
+									<span>{c.content}</span>
+									{c.caution && (<span className="px-2 py-0.5 rounded bg-orange-100 text-orange-800 border border-orange-300 text-[10px]">Caution</span>)}
+								</div>
 								<div className="flex items-center gap-3 mt-1">
 									<div className="text-xs text-gray-600">Score {cScore} • Likes {cLikes} • Dislikes {cDislikes}</div>
 									<form action={voteComment}>
