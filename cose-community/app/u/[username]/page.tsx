@@ -1,12 +1,14 @@
 import { prisma } from "@/lib/db";
 
-export async function generateMetadata({ params }: { params: { username: string } }) {
-  return { title: `${params.username} - Profile` };
+export async function generateMetadata({ params }: { params: Promise<{ username: string }> }) {
+  const { username } = await params;
+  return { title: `${username} - Profile` };
 }
 
-export default async function UserProfile({ params }: { params: { username: string } }) {
+export default async function UserProfile({ params }: { params: Promise<{ username: string }> }) {
+  const { username } = await params;
   const user = await prisma.user.findUnique({
-    where: { username: params.username },
+    where: { username },
     select: { id: true, username: true, email: true, createdAt: true },
   });
   if (!user) return <div>User not found</div>;
