@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { OpinionComposer } from "./OpinionComposer";
 import type { DebateSide } from "@prisma/client";
-import { moderateText } from "@/lib/moderation";
+import { moderateText, censorText } from "@/lib/moderation";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -152,7 +152,7 @@ export default async function DebatePage({ params, searchParams }: { params: Pro
       <li key={node.id} className="border rounded p-3" style={{ marginLeft: depth * 16 }}>
         <div className="text-xs text-gray-500 mb-1">{node.side === "PRO" ? "Pro" : "Con"} • by {node.author.username} • {new Date(node.createdAt).toLocaleString()}</div>
         <div className="flex items-center gap-2">
-          <span>{node.content}</span>
+          <span>{censorText(node.content)}</span>
           {node.caution && (<span className="px-2 py-0.5 rounded bg-orange-100 text-orange-800 border border-orange-300 text-[10px]">Caution</span>)}
         </div>
         <div className="flex items-center gap-2 mt-1 text-xs">

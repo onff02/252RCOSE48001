@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ConfirmSubmit } from "@/app/components/ConfirmSubmit";
-import { moderateText } from "@/lib/moderation";
+import { moderateText, censorText } from "@/lib/moderation";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
 	const { id } = await params;
@@ -163,7 +163,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
 			<div>
 				<div className="text-xs text-gray-500 mb-1">c/{post.community.name} • by <a href={`/u/${post.author.username}`} className="underline">{post.author.username}</a> • {new Date(post.createdAt).toLocaleString()}</div>
 				<h1 className="text-xl font-semibold">{post.title}</h1>
-				<div className="whitespace-pre-wrap mt-2">{post.content}</div>
+				<div className="whitespace-pre-wrap mt-2">{censorText(post.content)}</div>
 				<div className="flex items-center gap-3 mt-2">
 					<div className="text-xs text-gray-600">Score {score} • Likes {likesCount} • Dislikes {dislikesCount}</div>
 					{post.caution && (<span className="px-2 py-0.5 rounded bg-orange-100 text-orange-800 border border-orange-300 text-xs">Caution</span>)}
@@ -217,7 +217,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
 							<li key={c.id} className="border rounded p-3">
 								<div className="text-xs text-gray-500 mb-1">by <a href={`/u/${c.author.username}`} className="underline">{c.author.username}</a> • {new Date(c.createdAt).toLocaleString()}</div>
 								<div className="flex items-center gap-2">
-									<span>{c.content}</span>
+									<span>{censorText(c.content)}</span>
 									{c.caution && (<span className="px-2 py-0.5 rounded bg-orange-100 text-orange-800 border border-orange-300 text-[10px]">Caution</span>)}
 								</div>
 								<div className="flex items-center gap-3 mt-1">

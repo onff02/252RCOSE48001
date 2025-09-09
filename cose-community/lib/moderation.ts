@@ -71,3 +71,23 @@ export function moderateText(text: string): ModerationResult {
 
 	return { isSevere, isCaution, matches };
 }
+
+function escapeRegExp(input: string): string {
+	return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+export function censorText(text: string): string {
+	let result = text;
+	const allTerms = [
+		...SEVERE_TERMS,
+		...PROFANITY_TERMS,
+		...HATE_TERMS,
+	];
+	for (const term of allTerms) {
+		const escaped = escapeRegExp(term);
+		const isWord = /^[\p{L}\p{N}_-]+$/u.test(term);
+		const pattern = isWord ? new RegExp(`\\b${escaped}\\b`, "gi") : new RegExp(escaped, "gi");
+		result = result.replace(pattern, "***");
+	}
+	return result;
+}
