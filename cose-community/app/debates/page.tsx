@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import type { TopicCategory } from "@prisma/client";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth/session";
 import { revalidatePath } from "next/cache";
@@ -7,19 +8,19 @@ export const metadata = { title: "Debates" };
 
 export default async function DebatesPage({ searchParams }: { searchParams: Promise<{ cat?: string }> }) {
   const { cat } = await searchParams;
-  const category = cat === "INTERNATIONAL" ? "INTERNATIONAL" : cat === "ECONOMY" ? "ECONOMY" : undefined;
-  const where = category ? { category } : {};
+  const category: TopicCategory | undefined =
+    cat === "INTERNATIONAL" ? "INTERNATIONAL" : cat === "ECONOMY" ? "ECONOMY" : cat === "DOMESTIC" ? "DOMESTIC" : undefined;
 
   const topics = await prisma.topic.findMany({
-    where,
+    where: category ? { category } : undefined,
     orderBy: { createdAt: "desc" },
     select: { id: true, title: true, createdAt: true, category: true, opinions: { select: { id: true } } },
   });
 
   // Hot ranking: top 5 by opinions in last 48h
   const since = new Date(Date.now() - 48 * 60 * 60 * 1000);
-  const hot = await prisma.topic.findMany({
-    where,
+  const hot: { id: string; title: string; opinions: { id: string }[] }[] = await prisma.topic.findMany({
+    where: category ? { category } : undefined,
     select: { id: true, title: true, opinions: { where: { createdAt: { gte: since } }, select: { id: true } } },
     orderBy: { createdAt: "desc" },
     take: 50,
@@ -36,7 +37,9 @@ export default async function DebatesPage({ searchParams }: { searchParams: Prom
     const title = String(formData.get("title") || "");
     const description = String(formData.get("description") || "");
     const category = String(formData.get("category") || "DOMESTIC");
-    await prisma.topic.create({ data: { title, description: description || null, category: category as any, creatorId: user.id } });
+    const catVal: "DOMESTIC" | "INTERNATIONAL" | "ECONOMY" =
+      category === "INTERNATIONAL" ? "INTERNATIONAL" : category === "ECONOMY" ? "ECONOMY" : "DOMESTIC";
+    await prisma.topic.create({ data: { title, description: description || null, category: catVal, creatorId: user.id } });
     revalidatePath("/debates");
   }
 

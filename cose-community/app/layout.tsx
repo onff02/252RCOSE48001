@@ -46,10 +46,9 @@ export default async function RootLayout({
                 <>
                   <Link href={`/u/${user.username}`} className="text-gray-600 underline">{user.username}</Link>
                   <Link href="/me" className="px-3 py-1.5 rounded border hover:bg-gray-100 dark:hover:bg-gray-900">My profile</Link>
-                  {/* Admin link if role is ADMIN */}
-                  {/* We need role; fetch light info here */}
-                  {/* Simplify: call /api/auth/me for role? For SSR we don't have it; instead show link and gate on page. */}
-                  <Link href="/admin" className="px-3 py-1.5 rounded border hover:bg-gray-100 dark:hover:bg-gray-900">Admin</Link>
+                  {user.role === "ADMIN" && (
+                    <Link href="/admin" className="px-3 py-1.5 rounded border hover:bg-gray-100 dark:hover:bg-gray-900">Admin</Link>
+                  )}
                   <LogoutButton />
                 </>
               ) : (

@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth/session";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { OpinionComposer } from "./OpinionComposer";
+import type { DebateSide } from "@prisma/client";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -50,6 +52,7 @@ export default async function DebatePage({ params, searchParams }: { params: Pro
   const { sort } = await searchParams;
   const topic = await prisma.topic.findUnique({ where: { id }, select: { id: true, title: true, description: true } });
   if (!topic) return <div>Not found</div>;
+  const currentUser = await getCurrentUser();
 
   const opinions = await prisma.opinion.findMany({
     where: { topicId: id },
@@ -92,11 +95,14 @@ export default async function DebatePage({ params, searchParams }: { params: Pro
     "use server";
     const user = await getCurrentUser();
     if (!user) return;
-    const content = String(formData.get("content") || "");
+    const content = String(formData.get("content") || "").trim();
+    if (!content) return;
     const side = String(formData.get("side") || "PRO");
     const parentId = String(formData.get("parentId") || "");
-    await prisma.opinion.create({ data: { content, side: side === "CON" ? "CON" : "PRO", authorId: user.id, topicId: id, parentId: parentId || null } });
+    const sideVal: DebateSide = side === "CON" ? "CON" : "PRO";
+    await prisma.opinion.create({ data: { content, side: sideVal, authorId: user.id, topicId: id, parentId: parentId || null } });
     revalidatePath(`/debates/${id}`);
+    redirect(`/debates/${id}`);
   }
 
   async function voteOpinion(formData: FormData) {
@@ -174,14 +180,18 @@ export default async function DebatePage({ params, searchParams }: { params: Pro
       </div>
       <div>
         <h2 className="font-medium mb-2">Add an opinion</h2>
-        <form action={addOpinion} className="space-y-2">
-          <OpinionComposer />
-          <div className="flex gap-2 text-sm">
-            <label><input type="radio" name="side" value="PRO" defaultChecked /> Pro</label>
-            <label><input type="radio" name="side" value="CON" /> Con</label>
-          </div>
-          <button className="px-3 py-2 rounded bg-black text-white">Post</button>
-        </form>
+        {currentUser ? (
+          <form action={addOpinion} className="space-y-2">
+            <OpinionComposer />
+            <div className="flex gap-2 text-sm">
+              <label><input type="radio" name="side" value="PRO" defaultChecked /> Pro</label>
+              <label><input type="radio" name="side" value="CON" /> Con</label>
+            </div>
+            <button className="px-3 py-2 rounded bg-black text-white">Post</button>
+          </form>
+        ) : (
+          <div className="text-sm text-gray-700">Please log in to post</div>
+        )}
       </div>
       <div>
         <h2 className="font-medium mb-2">Opinions</h2>

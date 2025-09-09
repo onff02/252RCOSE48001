@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { InfinitePosts } from "./components/InfinitePosts";
 
 function getOrderClause(sort: string | null) {
   if (sort === "views") return { createdAt: "desc" as const };
@@ -16,7 +17,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ s
 
   const posts = await prisma.post.findMany({
     orderBy: getOrderClause(sort || null),
-    take: 12,
+    take: 13,
     select: {
       id: true,
       title: true,
@@ -71,6 +72,16 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ s
     ? [...enriched].sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0))
     : enriched;
 
+  const initial = finalList.slice(0, 12).map((p) => ({
+    id: p.id,
+    title: p.title,
+    createdAt: p.createdAt.toISOString(),
+    community: p.community,
+    author: p.author,
+    score: p.score,
+  }));
+  const nextCursor = finalList.length > 12 ? finalList[12].id : null;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -90,27 +101,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ s
         </ol>
       </div>
       <h2 className="font-medium">Latest posts</h2>
-      <ul className="space-y-4">
-        {finalList.map((p) => {
-          return (
-            <li key={p.id} className="border rounded p-4">
-              <div className="text-xs text-gray-500 mb-1">
-                <Link href={`/c/${p.community.slug}`} className="underline">{p.community.name}</Link>
-                {" "}• posted by <Link href={`/u/${p.author.username}`} className="underline">{p.author.username}</Link>
-                {" "}• {new Date(p.createdAt).toLocaleString()}
-              </div>
-              <Link href={`/post/${p.id}`} className="text-lg font-medium hover:underline">
-                {p.title}
-              </Link>
-              <div className="text-xs text-gray-600 mt-2">
-                Score {p.score}
-                {typeof p.viewCount === "number" && <> • Views {p.viewCount}</>}
-                {typeof p.popularity === "number" && <> • Popular {p.popularity}</>}
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+      <InfinitePosts initialPosts={initial} initialNextCursor={nextCursor} />
     </div>
   );
 }

@@ -14,6 +14,7 @@ export function OpinionComposer() {
   return (
     <div>
       <textarea
+        id="content"
         name="content"
         placeholder="Write your opinion"
         className="w-full border rounded px-3 py-2"

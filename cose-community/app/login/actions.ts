@@ -14,7 +14,7 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
     where: { OR: [{ email: identifier }, { username: identifier }] },
     select: { id: true, email: true, username: true, passwordHash: true, banned: true },
   });
-  if (user.banned) {
+  if (user && user.banned) {
     return { error: "Account banned" };
   }
 
