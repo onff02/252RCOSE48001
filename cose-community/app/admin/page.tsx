@@ -33,6 +33,22 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   });
   const hasMore = reports.length === take;
 
+  async function createTopic(formData: FormData) {
+    "use server";
+    const me = await getCurrentUser();
+    if (!me) return;
+    const my = await prisma.user.findUnique({ where: { id: me.id }, select: { role: true } });
+    if (!my || my.role !== "ADMIN") return;
+    const title = String(formData.get("title") || "");
+    const description = String(formData.get("description") || "");
+    const category = String(formData.get("category") || "DOMESTIC");
+    const catVal: "DOMESTIC" | "INTERNATIONAL" | "ECONOMY" = category === "INTERNATIONAL" ? "INTERNATIONAL" : category === "ECONOMY" ? "ECONOMY" : "DOMESTIC";
+    if (!title.trim()) return;
+    await prisma.topic.create({ data: { title, description: description || null, category: catVal, creatorId: me.id } });
+    revalidatePath("/debates");
+    revalidatePath("/admin");
+  }
+
   async function resolveReport(formData: FormData) {
     "use server";
     const me = await getCurrentUser();
@@ -69,6 +85,22 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-semibold">Admin</h1>
+      <div>
+        <h2 className="font-medium mb-2">Create debate topic</h2>
+        <form action={createTopic} className="space-y-2 max-w-lg">
+          <input name="title" placeholder="New topic title" className="w-full border rounded px-3 py-2" />
+          <textarea name="description" placeholder="Description (optional)" className="w-full border rounded px-3 py-2 min-h-24" />
+          <div className="flex items-center gap-2 text-sm">
+            <span>Category:</span>
+            <select name="category" className="border rounded px-2 py-1">
+              <option value="DOMESTIC">Domestic</option>
+              <option value="INTERNATIONAL">International</option>
+              <option value="ECONOMY">Economy/Real Estate</option>
+            </select>
+          </div>
+          <button className="px-3 py-2 rounded bg-black text-white">Create topic</button>
+        </form>
+      </div>
       <div>
         <h2 className="font-medium mb-2">Banned users</h2>
         <ul className="space-y-2">

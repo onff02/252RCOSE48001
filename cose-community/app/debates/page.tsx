@@ -1,8 +1,6 @@
 import { prisma } from "@/lib/db";
 import type { TopicCategory } from "@prisma/client";
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/auth/session";
-import { revalidatePath } from "next/cache";
 
 export const metadata = { title: "Debates" };
 
@@ -30,37 +28,13 @@ export default async function DebatesPage({ searchParams }: { searchParams: Prom
     .sort((a, b) => b.count - a.count)
     .slice(0, 5);
 
-  async function createTopic(formData: FormData) {
-    "use server";
-    const user = await getCurrentUser();
-    if (!user) return;
-    const title = String(formData.get("title") || "");
-    const description = String(formData.get("description") || "");
-    const category = String(formData.get("category") || "DOMESTIC");
-    const catVal: "DOMESTIC" | "INTERNATIONAL" | "ECONOMY" =
-      category === "INTERNATIONAL" ? "INTERNATIONAL" : category === "ECONOMY" ? "ECONOMY" : "DOMESTIC";
-    await prisma.topic.create({ data: { title, description: description || null, category: catVal, creatorId: user.id } });
-    revalidatePath("/debates");
-  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Debates</h1>
       </div>
-      <form action={createTopic} className="space-y-2 max-w-lg">
-        <input name="title" placeholder="New topic title" className="w-full border rounded px-3 py-2" />
-        <textarea name="description" placeholder="Description (optional)" className="w-full border rounded px-3 py-2 min-h-24" />
-        <div className="flex items-center gap-2 text-sm">
-          <span>Category:</span>
-          <select name="category" className="border rounded px-2 py-1">
-            <option value="DOMESTIC">Domestic</option>
-            <option value="INTERNATIONAL">International</option>
-            <option value="ECONOMY">Economy/Real Estate</option>
-          </select>
-        </div>
-        <button className="px-3 py-2 rounded bg-black text-white">Create topic</button>
-      </form>
+      {/* Topic creation moved to Admin page */}
       <div className="flex items-center gap-2 text-sm">
         <span>Filter:</span>
         <Link className="px-2 py-1 border rounded" href="/debates">All</Link>
