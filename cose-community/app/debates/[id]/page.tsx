@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth/session";
 import { revalidatePath } from "next/cache";
-import { RecommendClient } from "./RecommendClient";
+import { OpinionComposer } from "./OpinionComposer";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -175,9 +175,7 @@ export default async function DebatePage({ params, searchParams }: { params: Pro
       <div>
         <h2 className="font-medium mb-2">Add an opinion</h2>
         <form action={addOpinion} className="space-y-2">
-          <textarea name="content" placeholder="Write your opinion" className="w-full border rounded px-3 py-2" />
-          {/* Live recommendations from Wikipedia */}
-          <RecommendClient text={""} />
+          <OpinionComposer />
           <div className="flex gap-2 text-sm">
             <label><input type="radio" name="side" value="PRO" defaultChecked /> Pro</label>
             <label><input type="radio" name="side" value="CON" /> Con</label>
