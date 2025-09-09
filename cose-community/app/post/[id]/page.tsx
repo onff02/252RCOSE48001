@@ -69,18 +69,20 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
 		redirect(`/c/${postRecord.community.slug}`);
 	}
 
-	async function upvote() {
+	async function votePost(formData: FormData) {
 		"use server";
 		const user = await getCurrentUser();
 		if (!user) return;
+		const valueStr = String(formData.get("value") || "");
+		const desired = valueStr === "-1" ? -1 : 1;
 		const existing = await prisma.postVote.findUnique({ where: { userId_postId: { userId: user.id, postId: id } } });
-		if (existing?.value === 1) {
+		if (existing && existing.value === desired) {
 			await prisma.postVote.delete({ where: { userId_postId: { userId: user.id, postId: id } } });
 		} else {
 			await prisma.postVote.upsert({
 				where: { userId_postId: { userId: user.id, postId: id } },
-				update: { value: 1 },
-				create: { userId: user.id, postId: id, value: 1 },
+				update: { value: desired },
+				create: { userId: user.id, postId: id, value: desired },
 			});
 		}
 		revalidatePath(`/post/${id}`);
@@ -92,14 +94,16 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
 		if (!user) return;
 		const commentId = String(formData.get("commentId") || "");
 		if (!commentId) return;
+		const valueStr = String(formData.get("value") || "");
+		const desired = valueStr === "-1" ? -1 : 1;
 		const existing = await prisma.commentVote.findUnique({ where: { userId_commentId: { userId: user.id, commentId } } });
-		if (existing?.value === 1) {
+		if (existing && existing.value === desired) {
 			await prisma.commentVote.delete({ where: { userId_commentId: { userId: user.id, commentId } } });
 		} else {
 			await prisma.commentVote.upsert({
 				where: { userId_commentId: { userId: user.id, commentId } },
-				update: { value: 1 },
-				create: { userId: user.id, commentId, value: 1 },
+				update: { value: desired },
+				create: { userId: user.id, commentId, value: desired },
 			});
 		}
 		revalidatePath(`/post/${id}`);
@@ -125,7 +129,10 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
 	}
 
 	const score = post.votes.reduce((a, v) => a + v.value, 0);
+	const likesCount = post.votes.filter((v) => v.value === 1).length;
+	const dislikesCount = post.votes.filter((v) => v.value === -1).length;
 	const likedByMe = !!(currentUser && post.votes.some((v) => v.userId === currentUser.id && v.value === 1));
+	const dislikedByMe = !!(currentUser && post.votes.some((v) => v.userId === currentUser.id && v.value === -1));
 
 	return (
 		<div className="space-y-6">
@@ -134,10 +141,17 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
 				<h1 className="text-xl font-semibold">{post.title}</h1>
 				<div className="whitespace-pre-wrap mt-2">{post.content}</div>
 				<div className="flex items-center gap-3 mt-2">
-					<div className="text-xs text-gray-600">Score {score}</div>
-					<form action={upvote}>
+					<div className="text-xs text-gray-600">Score {score} • Likes {likesCount} • Dislikes {dislikesCount}</div>
+					<form action={votePost}>
+						<input type="hidden" name="value" value="1" />
 						<button className={`px-2 py-1 rounded border text-xs ${likedByMe ? "bg-green-600 text-white border-green-600" : "hover:bg-gray-100 dark:hover:bg-gray-900"}`}>
 							{likedByMe ? "Liked" : "Like"}
+						</button>
+					</form>
+					<form action={votePost}>
+						<input type="hidden" name="value" value="-1" />
+						<button className={`px-2 py-1 rounded border text-xs ${dislikedByMe ? "bg-red-600 text-white border-red-600" : "hover:bg-gray-100 dark:hover:bg-gray-900"}`}>
+							{dislikedByMe ? "Disliked" : "Dislike"}
 						</button>
 					</form>
 					{currentUser && currentUser.id === post.author.id && (
@@ -162,16 +176,27 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
 					{comments.map((c) => {
 						const cScore = c.votes.reduce((a, v) => a + v.value, 0);
 						const cLikedByMe = !!(currentUser && c.votes.some((v) => v.userId === currentUser.id && v.value === 1));
+						const cDislikedByMe = !!(currentUser && c.votes.some((v) => v.userId === currentUser.id && v.value === -1));
+						const cLikes = c.votes.filter((v) => v.value === 1).length;
+						const cDislikes = c.votes.filter((v) => v.value === -1).length;
 						return (
 							<li key={c.id} className="border rounded p-3">
 								<div className="text-xs text-gray-500 mb-1">by {c.author.username} • {new Date(c.createdAt).toLocaleString()}</div>
 								<div>{c.content}</div>
 								<div className="flex items-center gap-3 mt-1">
-									<div className="text-xs text-gray-600">Score {cScore}</div>
+									<div className="text-xs text-gray-600">Score {cScore} • Likes {cLikes} • Dislikes {cDislikes}</div>
 									<form action={voteComment}>
 										<input type="hidden" name="commentId" value={c.id} />
+										<input type="hidden" name="value" value="1" />
 										<button className={`px-2 py-1 rounded border text-xs ${cLikedByMe ? "bg-green-600 text-white border-green-600" : "hover:bg-gray-100 dark:hover:bg-gray-900"}`}>
 											{cLikedByMe ? "Liked" : "Like"}
+										</button>
+									</form>
+									<form action={voteComment}>
+										<input type="hidden" name="commentId" value={c.id} />
+										<input type="hidden" name="value" value="-1" />
+										<button className={`px-2 py-1 rounded border text-xs ${cDislikedByMe ? "bg-red-600 text-white border-red-600" : "hover:bg-gray-100 dark:hover:bg-gray-900"}`}>
+											{cDislikedByMe ? "Disliked" : "Dislike"}
 										</button>
 									</form>
 									{currentUser && currentUser.username === c.author.username && (
