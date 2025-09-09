@@ -39,6 +39,9 @@ export default async function RootLayout({
               <Link href="/debates">Debates</Link>
             </nav>
             <div className="flex items-center gap-3 text-sm">
+              <form action="/search" className="hidden sm:block">
+                <input name="q" placeholder="Search..." className="border rounded px-2 py-1 text-sm" />
+              </form>
               {user ? (
                 <>
                   <Link href={`/u/${user.username}`} className="text-gray-600 underline">{user.username}</Link>
