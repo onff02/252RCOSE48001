@@ -36,6 +36,7 @@ export default async function RootLayout({
             <nav className="flex items-center gap-4 text-sm">
               <Link href="/" className="font-semibold">COSE Community</Link>
               <Link href="/communities">Communities</Link>
+              <Link href="/debates">Debates</Link>
             </nav>
             <div className="flex items-center gap-3 text-sm">
               {user ? (
