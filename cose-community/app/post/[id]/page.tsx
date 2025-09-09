@@ -54,6 +54,18 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
 		const mod = moderateText(content);
 		if (mod.isSevere) return;
 		await prisma.comment.create({ data: { content, caution: mod.isCaution, authorId: user.id, postId: id } });
+		const postRec = await prisma.post.findUnique({ where: { id }, select: { authorId: true, title: true } });
+		if (postRec && postRec.authorId !== user.id) {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			await (prisma as any).notification.create({ data: { userId: postRec.authorId, actorId: user.id, type: "REFUTATION", message: `New comment on your post: ${postRec.title}`, url: `/post/${id}` } });
+		}
+		// Notify followers of commenter
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const followers = await (prisma as any).follow.findMany({ where: { followingId: user.id }, select: { followerId: true } }).catch(() => [] as { followerId: string }[]);
+		if (followers.length > 0) {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			await (prisma as any).notification.createMany({ data: followers.map((f: { followerId: string }) => ({ userId: f.followerId, actorId: user.id, type: "FOLLOWED_USER_ACTIVITY", message: "User you follow commented on a post", url: `/post/${id}` })) });
+		}
 		revalidatePath(`/post/${id}`);
 	}
 
@@ -89,6 +101,13 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
 				update: { value: desired },
 				create: { userId: user.id, postId: id, value: desired },
 			});
+			if (desired === 1) {
+				const postRec = await prisma.post.findUnique({ where: { id }, select: { authorId: true, title: true } });
+				if (postRec && postRec.authorId !== user.id) {
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					await (prisma as any).notification.create({ data: { userId: postRec.authorId, actorId: user.id, type: "LIKE", message: `Your post received a like: ${postRec.title}`, url: `/post/${id}` } });
+				}
+			}
 		}
 		revalidatePath(`/post/${id}`);
 	}

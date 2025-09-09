@@ -107,6 +107,20 @@ export default async function DebatePage({ params, searchParams }: { params: Pro
     if (mod.isSevere) return;
     const sideVal: DebateSide = side === "CON" ? "CON" : "PRO";
     await prisma.opinion.create({ data: { content, side: sideVal, caution: mod.isCaution, authorId: user.id, topicId: id, parentId: parentId || null } });
+    if (parentId) {
+      const parent = await prisma.opinion.findUnique({ where: { id: parentId }, select: { authorId: true } });
+      if (parent && parent.authorId !== user.id) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (prisma as any).notification.create({ data: { userId: parent.authorId, actorId: user.id, type: "REFUTATION", message: "New reply to your opinion", url: `/debates/${id}` } });
+      }
+    }
+    // Notify followers of the author about new opinion
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const followers = await (prisma as any).follow.findMany({ where: { followingId: user.id }, select: { followerId: true } }).catch(() => [] as { followerId: string }[]);
+    if (followers.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (prisma as any).notification.createMany({ data: followers.map((f: { followerId: string }) => ({ userId: f.followerId, actorId: user.id, type: "FOLLOWED_USER_ACTIVITY", message: "User you follow posted a new opinion", url: `/debates/${id}` })) });
+    }
     revalidatePath(`/debates/${id}`);
     redirect(`/debates/${id}`);
   }
@@ -127,6 +141,13 @@ export default async function DebatePage({ params, searchParams }: { params: Pro
         update: { value: desired },
         create: { userId: user.id, opinionId, value: desired },
       });
+      if (desired === 1) {
+        const op = await prisma.opinion.findUnique({ where: { id: opinionId }, select: { authorId: true } });
+        if (op && op.authorId !== user.id) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (prisma as any).notification.create({ data: { userId: op.authorId, actorId: user.id, type: "LIKE", message: "Your opinion received a like", url: `/debates/${id}` } });
+        }
+      }
     }
     revalidatePath(`/debates/${id}`);
   }

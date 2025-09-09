@@ -4,6 +4,7 @@ import "./globals.css";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth/session";
 import { LogoutButton } from "./components/LogoutButton";
+import { prisma } from "@/lib/db";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,6 +27,8 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const user = await getCurrentUser();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const unseenCount = user ? await (prisma as any).notification.count({ where: { userId: user.id, seen: false } }) : 0;
   return (
     <html lang="en">
       <body
@@ -45,6 +48,9 @@ export default async function RootLayout({
               {user ? (
                 <>
                   <Link href={`/u/${user.username}`} className="text-gray-600 underline">{user.username}</Link>
+                  <Link href="/notifications" className="px-3 py-1.5 rounded border hover:bg-gray-100 dark:hover:bg-gray-900 relative">
+                    Notifications{unseenCount > 0 && (<span className="ml-2 text-xs inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-red-600 text-white">{unseenCount}</span>)}
+                  </Link>
                   <Link href="/me" className="px-3 py-1.5 rounded border hover:bg-gray-100 dark:hover:bg-gray-900">My profile</Link>
                   {user.role === "ADMIN" && (
                     <Link href="/admin" className="px-3 py-1.5 rounded border hover:bg-gray-100 dark:hover:bg-gray-900">Admin</Link>

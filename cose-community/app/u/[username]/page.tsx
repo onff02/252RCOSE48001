@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth/session";
+import { revalidatePath } from "next/cache";
 
 export async function generateMetadata({ params }: { params: Promise<{ username: string }> }) {
   const { username } = await params;
@@ -7,6 +9,7 @@ export async function generateMetadata({ params }: { params: Promise<{ username:
 
 export default async function UserProfile({ params }: { params: Promise<{ username: string }> }) {
   const { username } = await params;
+  const me = await getCurrentUser();
   const user = await prisma.user.findUnique({
     where: { username },
     select: { id: true, username: true, email: true, createdAt: true },
@@ -40,12 +43,39 @@ export default async function UserProfile({ params }: { params: Promise<{ userna
   const commentLikes = comments.reduce((a, c) => a + c.votes.filter((v) => v.value === 1).length, 0);
   const commentDislikes = comments.reduce((a, c) => a + c.votes.filter((v) => v.value === -1).length, 0);
 
+  const isMe = !!(me && me.id === user.id);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const isFollowing = me ? !!(await (prisma as any).follow.findUnique({ where: { followerId_followingId: { followerId: me.id, followingId: user.id } } })) : false;
+
+  async function toggleFollow() {
+    "use server";
+    const me = await getCurrentUser();
+    if (!me) return;
+    const target = await prisma.user.findUnique({ where: { username } });
+    if (!target) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const existing = await (prisma as any).follow.findUnique({ where: { followerId_followingId: { followerId: me.id, followingId: target.id } } });
+    if (existing) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (prisma as any).follow.delete({ where: { followerId_followingId: { followerId: me.id, followingId: target.id } } });
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (prisma as any).follow.create({ data: { followerId: me.id, followingId: target.id } });
+    }
+    revalidatePath(`/u/${username}`);
+  }
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-semibold">{user.username}</h1>
         <div className="text-sm text-gray-600">Joined {new Date(user.createdAt).toLocaleDateString()}</div>
         <div className="text-sm mt-2">Total Likes {postLikes + commentLikes} • Total Dislikes {postDislikes + commentDislikes}</div>
+        {me && !isMe && (
+          <form action={toggleFollow} className="mt-2">
+            <button className="px-2 py-1 border rounded text-xs">{isFollowing ? "Unfollow" : "Follow"}</button>
+          </form>
+        )}
       </div>
 
       <div>
