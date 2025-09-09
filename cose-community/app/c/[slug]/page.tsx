@@ -105,13 +105,13 @@ export default async function CommunityPage({ params, searchParams }: { params: 
 	});
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const polls: { id: string; question: string; options: { id: string; text: string; votes: { id: string }[] }[] }[] = await (prisma as any).poll.findMany({
+	const polls: { id: string; question: string; options: { id: string; text: string; votes: { id: string; userId: string }[] }[] }[] = await (prisma as any).poll.findMany({
 		where: { communityId: community.id },
 		orderBy: { createdAt: "desc" },
 		select: {
 			id: true,
 			question: true,
-			options: { select: { id: true, text: true, votes: { select: { id: true } } } },
+			options: { select: { id: true, text: true, votes: { select: { id: true, userId: true } } } },
 		},
 	});
 
@@ -139,23 +139,13 @@ export default async function CommunityPage({ params, searchParams }: { params: 
 					<h1 className="text-xl font-semibold">c/{community.name}</h1>
 					<div className="text-sm text-gray-600">{community.title}</div>
 				</div>
-				<form action={createPost} className="flex flex-col gap-2 w-full max-w-lg">
-					<input name="title" placeholder="Post title" className="border rounded px-3 py-2" />
-					<textarea name="content" placeholder="Post content" className="border rounded px-3 py-2 min-h-24" />
-					<button className="px-3 py-2 rounded bg-black text-white self-start">Create</button>
-				</form>
+				<div className="flex items-center gap-2">
+					<Link href={`/c/${community.slug}/create/post`} className="px-3 py-2 rounded bg-black text-white">Create post</Link>
+					<Link href={`/c/${community.slug}/create/poll`} className="px-3 py-2 rounded border">Create poll</Link>
+				</div>
 			</div>
 			{community.description && <p className="text-sm">{community.description}</p>}
-			{currentUser && (
-				<div className="border rounded p-3">
-					<h2 className="font-medium mb-2">Create a poll</h2>
-					<form action={createPoll} className="space-y-2 max-w-lg">
-						<input name="question" placeholder="Poll question" className="w-full border rounded px-3 py-2" />
-						<textarea name="options" placeholder={"Options (one per line)"} className="w-full border rounded px-3 py-2 min-h-24" />
-						<button className="px-3 py-2 rounded border">Create poll</button>
-					</form>
-				</div>
-			)}
+            {/* Legacy inline poll creator removed in favor of dedicated page */}
 			{polls.length > 0 && (
 				<div>
 					<h2 className="font-medium mb-2">Community Polls</h2>
@@ -169,11 +159,14 @@ export default async function CommunityPage({ params, searchParams }: { params: 
 										<form action={votePoll} className="space-y-2">
 											<input type="hidden" name="pollId" value={p.id} />
 											<div className="space-y-1">
-												{p.options.map((o) => (
-													<label key={o.id} className="flex items-center gap-2 text-sm">
-														<input type="radio" name="optionId" value={o.id} /> {o.text}
-													</label>
-												))}
+												{p.options.map((o) => {
+													const voted = !!(currentUser && o.votes.some((v) => v.userId === currentUser.id));
+													return (
+														<label key={o.id} className="flex items-center gap-2 text-sm">
+															<input type="radio" name="optionId" value={o.id} defaultChecked={voted} /> {o.text}
+														</label>
+													);
+												})}
 											</div>
 											<button className="px-2 py-1 border rounded text-sm">Vote</button>
 										</form>

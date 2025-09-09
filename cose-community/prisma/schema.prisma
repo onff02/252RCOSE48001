@@ -149,6 +149,7 @@ model Topic {
   creator     User       @relation(fields: [creatorId], references: [id])
   creatorId   String
   opinions    Opinion[]
+  polls       Poll[]
 }
 
 model Opinion {
@@ -233,8 +234,10 @@ model Poll {
   question     String
   creator      User       @relation(fields: [creatorId], references: [id])
   creatorId    String
-  community    Community  @relation(fields: [communityId], references: [id])
-  communityId  String
+  community    Community? @relation(fields: [communityId], references: [id])
+  communityId  String?
+  topic        Topic?     @relation(fields: [topicId], references: [id])
+  topicId      String?
   options      PollOption[]
   votes        PollVote[]
 }

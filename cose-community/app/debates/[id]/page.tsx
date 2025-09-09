@@ -228,6 +228,11 @@ export default async function DebatePage({ params, searchParams }: { params: Pro
       <div>
         <h1 className="text-xl font-semibold">{topic.title}</h1>
         {topic.description && <p className="text-sm text-gray-700 mt-1">{topic.description}</p>}
+        {currentUser && (
+          <div className="mt-2">
+            <a className="px-3 py-2 rounded border text-sm" href={`/debates/${id}/create/poll`}>Create poll</a>
+          </div>
+        )}
       </div>
       <div>
         <h2 className="font-medium mb-2">Add an opinion</h2>
