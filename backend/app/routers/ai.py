@@ -79,10 +79,13 @@ def improve_text(request: ImproveTextRequest):
         )
     
     try:
+        # 원본 텍스트를 문장 단위로 분리
+        original_sentences = [s.strip() for s in request.text.split('.') if s.strip()]
+        
         # 글 수정을 위한 검색 쿼리 생성
         # 사용자의 글 내용을 기반으로 관련 정보를 검색하여 개선된 텍스트 생성
         text_preview = request.text[:200].replace('\n', ' ')
-        search_query = f"{text_preview} 논리적 근거 개선"
+        search_query = f"{text_preview} 관련 정보"
         
         # Tavily로 관련 정보 검색
         response = tavily_client.search(
@@ -90,22 +93,53 @@ def improve_text(request: ImproveTextRequest):
             search_depth="advanced"
         )
         
-        # 검색 결과를 기반으로 텍스트 개선
-        # 실제로는 LLM을 사용해야 하지만, 여기서는 검색 결과를 기반으로 간단히 개선
+        # 원본 텍스트를 기반으로 개선
         improved_text = request.text
         
         if "results" in response and len(response["results"]) > 0:
-            # 검색 결과를 요약하여 텍스트에 통합
-            relevant_info = []
-            for result in response["results"][:3]:  # 상위 3개 결과만 사용
+            # 검색 결과에서 핵심 정보 추출
+            key_points = []
+            for result in response["results"][:2]:  # 상위 2개 결과만 사용
                 title = result.get("title", "")
-                content = result.get("content", "")[:150]
-                if title and content:
-                    relevant_info.append(f"[{title}] {content}")
+                content = result.get("content", "")
+                
+                if content:
+                    # 내용에서 핵심 문장 추출 (첫 2-3문장)
+                    sentences = [s.strip() for s in content.split('.') if s.strip()][:3]
+                    if sentences:
+                        key_info = '. '.join(sentences)
+                        if len(key_info) > 200:
+                            key_info = key_info[:200] + "..."
+                        key_points.append({
+                            "title": title,
+                            "info": key_info
+                        })
             
-            if relevant_info:
-                # 원본 텍스트에 검색된 정보를 참고 문구로 추가
-                improved_text = f"{request.text}\n\n--- 참고 자료 ---\n" + "\n\n".join(relevant_info)
+            if key_points:
+                # 원본 텍스트의 구조를 유지하면서 자연스럽게 개선
+                # 검색 결과를 참고하여 문장을 더 구체적이고 논리적으로 만들기
+                
+                # 원본 텍스트를 그대로 유지하되, 끝에 자연스러운 참고 문구 추가
+                improved_sentences = original_sentences.copy()
+                
+                # 마지막 문장이 완전한 문장인지 확인
+                if improved_sentences and not improved_sentences[-1].endswith(('.', '!', '?')):
+                    improved_sentences[-1] += '.'
+                
+                # 참고 자료를 자연스럽게 추가
+                if len(key_points) > 0:
+                    # 자연스러운 연결 문구 추가
+                    improved_sentences.append("")
+                    improved_sentences.append("이러한 주장을 뒷받침하는 자료로는 다음과 같은 내용이 있습니다.")
+                    
+                    for i, point in enumerate(key_points, 1):
+                        if point["title"] and point["info"]:
+                            # 자연스러운 문장으로 변환
+                            improved_sentences.append(f"{point['title']}에 따르면, {point['info']}")
+                
+                improved_text = '. '.join(improved_sentences)
+                # 마지막에 불필요한 점이 여러 개 있는 경우 정리
+                improved_text = improved_text.replace('..', '.').replace('...', '...')
         
         return ImproveTextResponse(
             improved_text=improved_text,

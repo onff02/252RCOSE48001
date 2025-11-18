@@ -95,6 +95,17 @@ export default function WritePage() {
       return
     }
 
+    if (evidenceList.length === 0) {
+      toast({
+        title: '오류',
+        description: '최소 1개 이상의 근거를 추가해주세요.',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+      return
+    }
+
     setIsSubmitting(true)
     try {
       let finalTopicId = topicId
@@ -364,9 +375,14 @@ export default function WritePage() {
                 </Button>
               </HStack>
 
-              <Text fontSize="sm" color="gray.600">
-                글에서 사용된 자료
-              </Text>
+              <HStack>
+                <Text fontSize="sm" color="gray.600">
+                  글에서 사용된 자료
+                </Text>
+                <Text fontSize="sm" color="red.500" fontWeight="bold">
+                  (필수: 최소 1개 이상)
+                </Text>
+              </HStack>
 
               <VStack spacing={3} align="stretch">
                 {evidenceList.map((evidence) => (
@@ -445,6 +461,8 @@ export default function WritePage() {
               onClick={handleSubmit}
               isLoading={isSubmitting}
               loadingText="게시 중..."
+              isDisabled={evidenceList.length === 0}
+              title={evidenceList.length === 0 ? '최소 1개 이상의 근거를 추가해주세요' : ''}
             >
               게시하기
             </Button>
