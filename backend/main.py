@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
-from app.routers import auth, topics, claims, rebuttals, votes
+from app.routers import auth, topics, claims, rebuttals, votes, ai
 from app.database import init_db
 
 load_dotenv()
@@ -24,6 +24,7 @@ app.include_router(topics.router)
 app.include_router(claims.router)
 app.include_router(rebuttals.router)
 app.include_router(votes.router)
+app.include_router(ai.router)
 
 # Initialize database
 init_db()

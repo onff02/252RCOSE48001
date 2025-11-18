@@ -6,4 +6,5 @@ pydantic
 python-jose[cryptography]
 passlib[bcrypt]
 python-dotenv
+tavily-python
 

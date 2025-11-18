@@ -184,3 +184,20 @@ export const votesAPI = {
   },
 }
 
+// AI API
+export const aiAPI = {
+  searchEvidence: async (query: string, searchDepth: string = 'advanced') => {
+    return apiRequest<{ evidence: Array<{ source: string; publisher: string; text: string; url?: string }>; query: string }>('/api/ai/search-evidence', {
+      method: 'POST',
+      body: JSON.stringify({ query, search_depth: searchDepth }),
+    })
+  },
+
+  improveText: async (text: string, context?: string) => {
+    return apiRequest<{ improved_text: string; original_text: string }>('/api/ai/improve-text', {
+      method: 'POST',
+      body: JSON.stringify({ text, context }),
+    })
+  },
+}
+

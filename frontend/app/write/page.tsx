@@ -29,7 +29,7 @@ import {
   useToast,
 } from '@chakra-ui/react'
 import Link from 'next/link'
-import { topicsAPI, claimsAPI } from '@/lib/api'
+import { topicsAPI, claimsAPI, aiAPI } from '@/lib/api'
 
 export default function WritePage() {
   const router = useRouter()
@@ -38,6 +38,9 @@ export default function WritePage() {
   const { isOpen, onOpen, onClose } = useDisclosure()
   const [showAISuggestion, setShowAISuggestion] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSearchingEvidence, setIsSearchingEvidence] = useState(false)
+  const [isImprovingText, setIsImprovingText] = useState(false)
+  const [aiSuggestion, setAiSuggestion] = useState('')
   const [topicId, setTopicId] = useState<number | null>(null)
   const [formData, setFormData] = useState({
     topic: '',
@@ -46,7 +49,7 @@ export default function WritePage() {
     type: 'pro',
     category: '',
   })
-  const [evidenceList, setEvidenceList] = useState<Array<{ id: number; source: string; publisher: string; text?: string }>>([])
+  const [evidenceList, setEvidenceList] = useState<Array<{ id: number; source: string; publisher: string; text?: string; url?: string }>>([])
   const [newEvidence, setNewEvidence] = useState({ source: '', publisher: '', text: '' })
 
   useEffect(() => {
@@ -147,17 +150,85 @@ export default function WritePage() {
     }
   }
 
-  const handleAISearch = () => {
-    // TODO: AI 근거 찾기 API 호출
-    alert('AI가 근거를 검색하고 있습니다...')
+  const handleAISearch = async () => {
+    if (!formData.title && !formData.content) {
+      toast({
+        title: '오류',
+        description: '제목 또는 본문을 입력해주세요.',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+      return
+    }
+
+    setIsSearchingEvidence(true)
+    try {
+      // 제목과 본문을 조합하여 검색 쿼리 생성
+      const searchQuery = `${formData.topic || ''} ${formData.title} ${formData.content}`.trim()
+      
+      const response = await aiAPI.searchEvidence(searchQuery, 'advanced')
+      
+      // 검색된 근거를 evidenceList에 추가
+      const newEvidenceItems = response.evidence.map((ev, index) => ({
+        id: evidenceList.length + index + 1,
+        source: ev.source || ev.publisher || '출처 없음',
+        publisher: ev.publisher || ev.url || '출처 없음',
+        text: ev.text || '',
+        url: ev.url || '',
+      }))
+      
+      setEvidenceList([...evidenceList, ...newEvidenceItems])
+      
+      toast({
+        title: '성공',
+        description: `${newEvidenceItems.length}개의 근거를 찾았습니다.`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      })
+    } catch (error: any) {
+      toast({
+        title: '오류',
+        description: error.message || '근거 검색에 실패했습니다.',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+    } finally {
+      setIsSearchingEvidence(false)
+    }
   }
 
-  const handleAIRevise = () => {
-    // TODO: AI 글 수정 API 호출
-    setShowAISuggestion(true)
-  }
+  const handleAIRevise = async () => {
+    if (!formData.content) {
+      toast({
+        title: '오류',
+        description: '본문을 입력해주세요.',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+      return
+    }
 
-  const aiSuggestion = '이러한 이유로 10.15 부동산 대책은 효과적일 것입니다. 공급 확대와 투기 억제를 통해 시장 안정을 가져올 수 있습니다.'
+    setIsImprovingText(true)
+    try {
+      const response = await aiAPI.improveText(formData.content, formData.title)
+      setAiSuggestion(response.improved_text)
+      setShowAISuggestion(true)
+    } catch (error: any) {
+      toast({
+        title: '오류',
+        description: error.message || '글 수정에 실패했습니다.',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+    } finally {
+      setIsImprovingText(false)
+    }
+  }
 
   return (
     <Box minH="100vh" bg="gray.50">
@@ -238,10 +309,20 @@ export default function WritePage() {
               </FormControl>
 
               <HStack>
-                <Button colorScheme="blue" onClick={handleAISearch}>
+                <Button 
+                  colorScheme="blue" 
+                  onClick={handleAISearch}
+                  isLoading={isSearchingEvidence}
+                  loadingText="검색 중..."
+                >
                   AI 근거 찾기
                 </Button>
-                <Button colorScheme="green" onClick={handleAIRevise}>
+                <Button 
+                  colorScheme="green" 
+                  onClick={handleAIRevise}
+                  isLoading={isImprovingText}
+                  loadingText="수정 중..."
+                >
                   AI 글 수정 (다듬기)
                 </Button>
               </HStack>
@@ -287,18 +368,66 @@ export default function WritePage() {
                 글에서 사용된 자료
               </Text>
 
-              <VStack spacing={2} align="stretch">
+              <VStack spacing={3} align="stretch">
                 {evidenceList.map((evidence) => (
-                  <Card key={evidence.id}>
+                  <Card 
+                    key={evidence.id} 
+                    _hover={{ boxShadow: 'md', cursor: evidence.url ? 'pointer' : 'default' }}
+                    onClick={evidence.url ? () => window.open(evidence.url, '_blank', 'noopener,noreferrer') : undefined}
+                  >
                     <CardBody>
-                      <HStack justify="space-between">
-                        <VStack align="start" spacing={0}>
-                          <Text fontWeight="bold">{evidence.id}. {evidence.source}</Text>
-                          <Text fontSize="sm" color="gray.600">
-                            - {evidence.publisher}
-                          </Text>
+                      <HStack justify="space-between" align="start">
+                        <VStack align="start" spacing={2} flex={1}>
+                          <HStack>
+                            <Text as="span" fontWeight="bold" fontSize="sm" color="blue.600">
+                              {evidence.id}.
+                            </Text>
+                            {evidence.url ? (
+                              <Text
+                                as="a"
+                                href={evidence.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                fontWeight="bold"
+                                fontSize="md"
+                                color="blue.600"
+                                _hover={{ color: 'blue.800', textDecoration: 'underline' }}
+                                cursor="pointer"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {evidence.source}
+                              </Text>
+                            ) : (
+                              <Text fontWeight="bold" fontSize="md">
+                                {evidence.source}
+                              </Text>
+                            )}
+                          </HStack>
+                          {evidence.publisher && evidence.publisher !== evidence.source && (
+                            <Text fontSize="sm" color="gray.600" pl={6}>
+                              출처: {evidence.publisher}
+                            </Text>
+                          )}
+                          {evidence.text && (
+                            <Text fontSize="sm" color="gray.700" pl={6} noOfLines={3}>
+                              {evidence.text.length > 100 ? `${evidence.text.substring(0, 100)}...` : evidence.text}
+                            </Text>
+                          )}
+                          {evidence.url && (
+                            <Text fontSize="xs" color="gray.500" pl={6}>
+                              {evidence.url}
+                            </Text>
+                          )}
                         </VStack>
-                        <Button size="sm" variant="ghost" colorScheme="red" onClick={() => handleDeleteEvidence(evidence.id)}>
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          colorScheme="red" 
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDeleteEvidence(evidence.id)
+                          }}
+                        >
                           삭제
                         </Button>
                       </HStack>

@@ -578,28 +578,73 @@ export default function DebateDetailPage({ params }: { params: { id: string } | 
             </VStack>
           </Box>
 
-          <Box bg="white" p={6} borderRadius="lg" boxShadow="md">
-            <VStack spacing={4} align="stretch">
-              <Heading as="h2" size="md">
-                본문에 사용된 근거
-              </Heading>
-              <VStack spacing={2} align="stretch">
-                {currentClaim?.evidence?.map((ev: any, index: number) => (
-                  <Card key={index}>
-                    <CardBody>
-                      <Text fontSize="sm">
-                        <Text as="span" fontWeight="bold">{index + 1}. </Text>
-                        {ev.publisher || ev.source}: {ev.text || ''}
-                      </Text>
-                    </CardBody>
-                  </Card>
-                ))}
-                {(!currentClaim?.evidence || currentClaim.evidence.length === 0) && (
-                  <Text color="gray.500" fontSize="sm">등록된 근거가 없습니다.</Text>
-                )}
-              </VStack>
-            </VStack>
-          </Box>
+                  <Box bg="white" p={6} borderRadius="lg" boxShadow="md">
+                    <VStack spacing={4} align="stretch">
+                      <Heading as="h2" size="md">
+                        본문에 사용된 근거
+                      </Heading>
+                      <VStack spacing={3} align="stretch">
+                        {currentClaim?.evidence?.map((ev: any, index: number) => {
+                          // URL 추출: ev.url이 있으면 사용, 없으면 publisher가 URL인지 확인
+                          const evidenceUrl = ev.url || (ev.publisher && ev.publisher.startsWith('http') ? ev.publisher : null)
+                          const isClickable = !!evidenceUrl
+                          
+                          return (
+                            <Card 
+                              key={index} 
+                              _hover={{ boxShadow: 'md', cursor: isClickable ? 'pointer' : 'default' }}
+                              onClick={isClickable ? () => window.open(evidenceUrl, '_blank', 'noopener,noreferrer') : undefined}
+                            >
+                              <CardBody>
+                                <VStack align="stretch" spacing={2}>
+                                  <HStack>
+                                    <Text as="span" fontWeight="bold" fontSize="sm" color="blue.600">
+                                      {index + 1}.
+                                    </Text>
+                                    {isClickable ? (
+                                      <Text
+                                        as="a"
+                                        href={evidenceUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        fontWeight="bold"
+                                        fontSize="md"
+                                        color="blue.600"
+                                        _hover={{ color: 'blue.800', textDecoration: 'underline' }}
+                                        cursor="pointer"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        {ev.source || ev.publisher || '출처'}
+                                      </Text>
+                                    ) : (
+                                      <Text fontWeight="bold" fontSize="md">
+                                        {ev.source || ev.publisher || '출처 없음'}
+                                      </Text>
+                                    )}
+                                  </HStack>
+                                  {ev.text && (
+                                    <Text fontSize="sm" color="gray.700" pl={6} noOfLines={3}>
+                                      {ev.text.length > 100 ? `${ev.text.substring(0, 100)}...` : ev.text}
+                                    </Text>
+                                  )}
+                                  {evidenceUrl && (
+                                    <Text fontSize="xs" color="gray.500" pl={6}>
+                                      {evidenceUrl}
+                                    </Text>
+                                  )}
+                                </VStack>
+                              </CardBody>
+                            </Card>
+                          )
+                        })}
+                        {(!currentClaim?.evidence || currentClaim.evidence.length === 0) && (
+                          <Text color="gray.500" fontSize="sm" textAlign="center" py={4}>
+                            등록된 근거가 없습니다.
+                          </Text>
+                        )}
+                      </VStack>
+                    </VStack>
+                  </Box>
 
           {/* 반박 및 재반박 트리 */}
           {currentClaim && (
