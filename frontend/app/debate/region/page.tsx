@@ -105,9 +105,16 @@ export default function RegionDebatePage() {
             <Heading as="h1" size="xl">
               토론 게시판
             </Heading>
-            <Link href="/">
-              <Button variant="outline">메인으로</Button>
-            </Link>
+            <HStack spacing={2}>
+              <Link 
+                href={`/write?region=${selectedRegion}&district=${encodeURIComponent(selectedDistrict)}&topic_type=${activeTab === 0 ? 'region' : 'pledge'}`}
+              >
+                <Button colorScheme="green">토론 주제 생성</Button>
+              </Link>
+              <Link href="/">
+                <Button variant="outline">메인으로</Button>
+              </Link>
+            </HStack>
           </HStack>
 
           <Box bg="white" p={6} borderRadius="lg" boxShadow="md">

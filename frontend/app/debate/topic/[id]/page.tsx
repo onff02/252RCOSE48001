@@ -439,7 +439,7 @@ export default function DebateDetailPage({ params }: { params: { id: string } | 
                   colorScheme="green"
                   onClick={() => window.location.href = `/write?topic_id=${topicId}`}
                 >
-                  글 작성
+                  주장 작성
                 </Button>
               )}
             </HStack>
@@ -578,100 +578,7 @@ export default function DebateDetailPage({ params }: { params: { id: string } | 
             </VStack>
           </Box>
 
-                  <Box bg="white" p={6} borderRadius="lg" boxShadow="md">
-                    <VStack spacing={4} align="stretch">
-                      <Heading as="h2" size="md">
-                        본문에 사용된 근거
-                      </Heading>
-                      <VStack spacing={3} align="stretch">
-                        {currentClaim?.evidence?.map((ev: any, index: number) => {
-                          // URL 추출: ev.url이 있으면 사용, 없으면 publisher가 URL인지 확인
-                          const evidenceUrl = ev.url || (ev.publisher && ev.publisher.startsWith('http') ? ev.publisher : null)
-                          const isClickable = !!evidenceUrl
-                          
-                          return (
-                            <Card 
-                              key={index} 
-                              _hover={{ boxShadow: 'md', cursor: isClickable ? 'pointer' : 'default' }}
-                              onClick={isClickable ? () => window.open(evidenceUrl, '_blank', 'noopener,noreferrer') : undefined}
-                            >
-                              <CardBody>
-                                <VStack align="stretch" spacing={2}>
-                                  <HStack>
-                                    <Text as="span" fontWeight="bold" fontSize="sm" color="blue.600">
-                                      {index + 1}.
-                                    </Text>
-                                    {isClickable ? (
-                                      <Text
-                                        as="a"
-                                        href={evidenceUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        fontWeight="bold"
-                                        fontSize="md"
-                                        color="blue.600"
-                                        _hover={{ color: 'blue.800', textDecoration: 'underline' }}
-                                        cursor="pointer"
-                                        onClick={(e) => e.stopPropagation()}
-                                      >
-                                        {ev.source || ev.publisher || '출처'}
-                                      </Text>
-                                    ) : (
-                                      <Text fontWeight="bold" fontSize="md">
-                                        {ev.source || ev.publisher || '출처 없음'}
-                                      </Text>
-                                    )}
-                                  </HStack>
-                                  {ev.text && (
-                                    <Text fontSize="sm" color="gray.700" pl={6} noOfLines={3}>
-                                      {ev.text.length > 100 ? `${ev.text.substring(0, 100)}...` : ev.text}
-                                    </Text>
-                                  )}
-                                  {evidenceUrl && (
-                                    <Text fontSize="xs" color="gray.500" pl={6}>
-                                      {evidenceUrl}
-                                    </Text>
-                                  )}
-                                </VStack>
-                              </CardBody>
-                            </Card>
-                          )
-                        })}
-                        {(!currentClaim?.evidence || currentClaim.evidence.length === 0) && (
-                          <Text color="gray.500" fontSize="sm" textAlign="center" py={4}>
-                            등록된 근거가 없습니다.
-                          </Text>
-                        )}
-                      </VStack>
-                    </VStack>
-                  </Box>
-
-          {/* 반박 및 재반박 트리 */}
-          {currentClaim && (
-            <Box bg="white" p={6} borderRadius="lg" boxShadow="md">
-              <VStack spacing={4} align="stretch">
-                <HStack justify="space-between">
-                  <Heading as="h2" size="md">
-                    반박 및 재반박
-                  </Heading>
-                  <Button size="sm" colorScheme="blue" onClick={() => setShowRebuttalModal(true)}>
-                    반박 작성
-                  </Button>
-                </HStack>
-                <Divider />
-                {currentClaim.rebuttals && currentClaim.rebuttals.length > 0 ? (
-                  <VStack align="stretch" spacing={2}>
-                    {buildRebuttalTree(currentClaim.rebuttals).map((rebuttal) => renderRebuttalTree(rebuttal))}
-                  </VStack>
-                ) : (
-                  <Text color="gray.500" textAlign="center" py={4}>
-                    등록된 반박이 없습니다.
-                  </Text>
-                )}
-              </VStack>
-            </Box>
-          )}
-
+          {/* 다른 주장 보기 */}
           <Box bg="white" p={6} borderRadius="lg" boxShadow="md">
             <VStack spacing={4} align="stretch">
               <Heading as="h2" size="md">
@@ -709,6 +616,101 @@ export default function DebateDetailPage({ params }: { params: { id: string } | 
                   </Card>
                 ))}
               </HStack>
+            </VStack>
+          </Box>
+
+          {/* 반박 및 재반박 트리 */}
+          {currentClaim && (
+            <Box bg="white" p={6} borderRadius="lg" boxShadow="md">
+              <VStack spacing={4} align="stretch">
+                <HStack justify="space-between">
+                  <Heading as="h2" size="md">
+                    반박 및 재반박
+                  </Heading>
+                  <Button size="sm" colorScheme="blue" onClick={() => setShowRebuttalModal(true)}>
+                    반박 작성
+                  </Button>
+                </HStack>
+                <Divider />
+                {currentClaim.rebuttals && currentClaim.rebuttals.length > 0 ? (
+                  <VStack align="stretch" spacing={2}>
+                    {buildRebuttalTree(currentClaim.rebuttals).map((rebuttal) => renderRebuttalTree(rebuttal))}
+                  </VStack>
+                ) : (
+                  <Text color="gray.500" textAlign="center" py={4}>
+                    등록된 반박이 없습니다.
+                  </Text>
+                )}
+              </VStack>
+            </Box>
+          )}
+
+          {/* 본문에 사용된 근거 */}
+          <Box bg="white" p={6} borderRadius="lg" boxShadow="md">
+            <VStack spacing={4} align="stretch">
+              <Heading as="h2" size="md">
+                본문에 사용된 근거
+              </Heading>
+              <VStack spacing={3} align="stretch">
+                {currentClaim?.evidence?.map((ev: any, index: number) => {
+                  // URL 추출: ev.url이 있으면 사용, 없으면 publisher가 URL인지 확인
+                  const evidenceUrl = ev.url || (ev.publisher && ev.publisher.startsWith('http') ? ev.publisher : null)
+                  const isClickable = !!evidenceUrl
+                  
+                  return (
+                    <Card 
+                      key={index} 
+                      _hover={{ boxShadow: 'md', cursor: isClickable ? 'pointer' : 'default' }}
+                      onClick={isClickable ? () => window.open(evidenceUrl, '_blank', 'noopener,noreferrer') : undefined}
+                    >
+                      <CardBody>
+                        <VStack align="stretch" spacing={2}>
+                          <HStack>
+                            <Text as="span" fontWeight="bold" fontSize="sm" color="blue.600">
+                              {index + 1}.
+                            </Text>
+                            {isClickable ? (
+                              <Text
+                                as="a"
+                                href={evidenceUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                fontWeight="bold"
+                                fontSize="md"
+                                color="blue.600"
+                                _hover={{ color: 'blue.800', textDecoration: 'underline' }}
+                                cursor="pointer"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {ev.source || ev.publisher || '출처'}
+                              </Text>
+                            ) : (
+                              <Text fontWeight="bold" fontSize="md">
+                                {ev.source || ev.publisher || '출처 없음'}
+                              </Text>
+                            )}
+                          </HStack>
+                          {ev.text && (
+                            <Text fontSize="sm" color="gray.700" pl={6} noOfLines={3}>
+                              {ev.text.length > 100 ? `${ev.text.substring(0, 100)}...` : ev.text}
+                            </Text>
+                          )}
+                          {evidenceUrl && (
+                            <Text fontSize="xs" color="gray.500" pl={6}>
+                              {evidenceUrl}
+                            </Text>
+                          )}
+                        </VStack>
+                      </CardBody>
+                    </Card>
+                  )
+                })}
+                {(!currentClaim?.evidence || currentClaim.evidence.length === 0) && (
+                  <Text color="gray.500" fontSize="sm" textAlign="center" py={4}>
+                    등록된 근거가 없습니다.
+                  </Text>
+                )}
+              </VStack>
             </VStack>
           </Box>
         </VStack>

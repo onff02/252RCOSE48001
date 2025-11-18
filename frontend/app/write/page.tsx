@@ -42,6 +42,7 @@ export default function WritePage() {
   const [isImprovingText, setIsImprovingText] = useState(false)
   const [aiSuggestion, setAiSuggestion] = useState('')
   const [topicId, setTopicId] = useState<number | null>(null)
+  const [regionInfo, setRegionInfo] = useState<{ region?: string; district?: string; topicType?: string } | null>(null)
   const [formData, setFormData] = useState({
     topic: '',
     title: '',
@@ -65,6 +66,18 @@ export default function WritePage() {
           })
           .catch(() => {})
       }
+    }
+
+    // 지역 정보 처리
+    const region = searchParams.get('region')
+    const district = searchParams.get('district')
+    const topicType = searchParams.get('topic_type')
+    if (region || district || topicType) {
+      setRegionInfo({
+        region: region || undefined,
+        district: district ? decodeURIComponent(district) : undefined,
+        topicType: topicType || undefined,
+      })
     }
   }, [searchParams])
 
@@ -112,11 +125,39 @@ export default function WritePage() {
 
       // 주제가 없으면 새로 생성
       if (!finalTopicId && formData.topic) {
-        const newTopic = await topicsAPI.createTopic({
+        const topicData: {
+          title: string
+          category?: string
+          region?: string
+          district?: string
+          topic_type: string
+        } = {
           title: formData.topic,
-          category: formData.category || undefined,
-          topic_type: 'topic',
-        })
+          topic_type: regionInfo?.topicType || 'topic',
+        }
+
+        if (formData.category) {
+          topicData.category = formData.category
+        }
+
+        // 지역 정보가 있으면 추가
+        if (regionInfo?.region) {
+          topicData.region = regionInfo.region
+        }
+        if (regionInfo?.district) {
+          // "서울 전체", "경기 전체" 같은 경우는 district를 설정하지 않음
+          const regionName = regionInfo.region === 'seoul' ? '서울' : 
+                            regionInfo.region === 'gyeonggi' ? '경기' : 
+                            regionInfo.region === 'gangwon' ? '강원' : ''
+          if (regionInfo.district !== `${regionName} 전체` && 
+              regionInfo.district !== '서울 전체' && 
+              regionInfo.district !== '경기 전체' && 
+              regionInfo.district !== '강원 전체') {
+            topicData.district = regionInfo.district
+          }
+        }
+
+        const newTopic = await topicsAPI.createTopic(topicData)
         finalTopicId = newTopic.id
       }
 
@@ -147,7 +188,12 @@ export default function WritePage() {
         isClosable: true,
       })
 
-      router.push(`/debate/topic/${finalTopicId}`)
+      // 지역별에서 작성한 경우 지역별 게시판으로 이동
+      if (regionInfo) {
+        router.push('/debate/region')
+      } else {
+        router.push(`/debate/topic/${finalTopicId}`)
+      }
     } catch (error: any) {
       toast({
         title: '오류',
@@ -246,10 +292,23 @@ export default function WritePage() {
       <Container maxW="container.xl" py={8}>
         <VStack spacing={6} align="stretch">
           <HStack justify="space-between">
-            <Heading as="h1" size="xl">
-              글 작성
-            </Heading>
-            <Link href="/debate/topic">
+            <VStack align="start" spacing={1}>
+              <Heading as="h1" size="xl">
+                글 작성
+              </Heading>
+              {regionInfo && (
+                <Text fontSize="sm" color="gray.600">
+                  {regionInfo.region === 'seoul' ? '서울' : 
+                   regionInfo.region === 'gyeonggi' ? '경기' : 
+                   regionInfo.region === 'gangwon' ? '강원' : ''} 
+                  {regionInfo.district && regionInfo.district !== '서울 전체' && regionInfo.district !== '경기 전체' && regionInfo.district !== '강원 전체' 
+                    ? ` ${regionInfo.district}` 
+                    : ''} 
+                  {regionInfo.topicType === 'region' ? ' 지역 현안' : regionInfo.topicType === 'pledge' ? ' 공약 토론' : ''}
+                </Text>
+              )}
+            </VStack>
+            <Link href={regionInfo ? "/debate/region" : "/debate/topic"}>
               <Button variant="outline">취소</Button>
             </Link>
           </HStack>

@@ -77,7 +77,7 @@ export default function TopicDebatePage() {
             <HStack spacing={2}>
               <UserInfo />
               <Link href="/write">
-                <Button colorScheme="green">글 작성</Button>
+                <Button colorScheme="green">토론 주제 생성</Button>
               </Link>
               <Link href="/">
                 <Button variant="outline">메인으로</Button>
