@@ -122,6 +122,7 @@ export default function RegisterPage() {
                   />
                 </FormControl>
 
+                {/* 정당 선택 옵션 업데이트됨 */}
                 <FormControl isRequired>
                   <FormLabel>선호 정당</FormLabel>
                   <Select
@@ -131,12 +132,15 @@ export default function RegisterPage() {
                       setFormData({ ...formData, politicalParty: e.target.value })
                     }
                   >
-                    <option value="democratic">민주당</option>
-                    <option value="people_power">국민의힘</option>
-                    <option value="justice">정의당</option>
-                    <option value="green">녹색당</option>
-                    <option value="basic_income">기본소득당</option>
-                    <option value="none">없음</option>
+                    <option value="Democratic">더불어민주당</option>
+                    <option value="People_Power">국민의힘</option>
+                    <option value="Rebuilding_Korea">조국혁신당</option>
+                    <option value="The_Progressive">진보당</option>
+                    <option value="Reform">개혁신당</option>
+                    <option value="Basic_Income">기본소득당</option>
+                    <option value="The_Social_Democratic">사회민주당</option>
+                    <option value="Minor">기타</option>
+                    <option value="None">없음</option>
                   </Select>
                 </FormControl>
 
@@ -155,9 +159,10 @@ export default function RegisterPage() {
 
             <Text textAlign="center">
               이미 계정이 있으신가요?{' '}
-              <Link href="/auth/login">
-                <ChakraLink color="blue.500">로그인</ChakraLink>
-              </Link>
+              {/* Link 중첩 에러 수정됨 */}
+              <ChakraLink as={Link} href="/auth/login" color="blue.500">
+                로그인
+              </ChakraLink>
             </Text>
           </VStack>
         </Box>
@@ -165,4 +170,3 @@ export default function RegisterPage() {
     </Box>
   )
 }
-

@@ -210,7 +210,7 @@ export default function DebateDetailPage({ params }: { params: { id: string } | 
 
   const renderContentWithEvidence = (content: string, evidence: any[]) => {
     // 간단한 구현: 근거가 있으면 전체 내용에 밑줄 표시 가능
-    return <Text>{content}</Text>
+    return <>{content}</>
   }
 
   interface RebuttalNode {
@@ -456,124 +456,164 @@ export default function DebateDetailPage({ params }: { params: { id: string } | 
                   등록된 주장이 없습니다.
                 </Text>
               ) : currentClaim ? (
-                <Card>
-                <CardBody>
-                  <VStack spacing={4} align="stretch">
-                    <HStack justify="space-between">
-                      <HStack>
-                        {currentClaim.sticker && (
-                          <Badge colorScheme={currentClaim.sticker === 'Best' ? 'red' : 'orange'}>
-                            {currentClaim.sticker}
+                <Card
+                  borderTop="4px solid"
+                  borderColor={currentClaim.type === 'pro' ? 'blue.400' : 'red.400'}
+                  bg={currentClaim.type === 'pro' ? 'blue.50' : 'red.50'}
+                  shadow="lg"
+                  borderRadius="xl"
+                  overflow="hidden"
+                >
+                  <CardBody p={8}>
+                    <VStack spacing={6} align="stretch">
+                      
+                      {/* 1. 상단 헤더: 작성자 정보와 찬반 배지를 배치 */}
+                      <HStack justify="space-between">
+                        <HStack spacing={3}>
+                          <Avatar 
+                            size="sm" 
+                            name={currentClaim.author?.name || `사용자 ${currentClaim.user_id}`} 
+                            bg={currentClaim.type === 'pro' ? 'blue.500' : 'red.500'}
+                          />
+                          <VStack align="start" spacing={0}>
+                            <Text fontWeight="bold" fontSize="sm">
+                              {currentClaim.author?.name || `사용자 ${currentClaim.user_id}`}
+                            </Text>
+                            <HStack spacing={1}>
+                              <Text fontSize="xs" color="gray.500">
+                                {currentClaim.author?.affiliation ? `${getPartyName(currentClaim.author.affiliation)} · ` : ''}
+                                Lv.{currentClaim.author?.level || 1}
+                              </Text>
+                              <Text fontSize="xs" color="gray.400">•</Text>
+                              <Text fontSize="xs" color="gray.500">
+                                {new Date(currentClaim.created_at).toLocaleDateString()}
+                              </Text>
+                            </HStack>
+                          </VStack>
+                        </HStack>
+                        
+                        <HStack>
+                          {currentClaim.sticker && (
+                            <Badge colorScheme={currentClaim.sticker === 'Best' ? 'red' : 'orange'} variant="solid" borderRadius="full" px={3}>
+                              {currentClaim.sticker}
+                            </Badge>
+                          )}
+                          <Badge 
+                            colorScheme={currentClaim.type === 'pro' ? 'blue' : 'red'} 
+                            variant="subtle" 
+                            px={3} py={1} 
+                            borderRadius="full" 
+                            fontSize="md"
+                          >
+                            {currentClaim.type === 'pro' ? '찬성' : '반대'}
                           </Badge>
-                        )}
-                        <Badge colorScheme={currentClaim.type === 'pro' ? 'green' : 'red'}>
-                          {currentClaim.type === 'pro' ? '찬성' : '반대'}
-                        </Badge>
+                        </HStack>
                       </HStack>
-                      <Text fontSize="sm" color="gray.600">
-                        {currentCardIndex + 1} / {claims.length}
-                      </Text>
-                    </HStack>
 
-                    <Box>
-                      <Text fontWeight="bold" fontSize="lg" mb={2}>
-                        {currentClaim.title}
-                      </Text>
-                      {renderContentWithEvidence(currentClaim.content, currentClaim.evidence || [])}
-                    </Box>
-
-                    <HStack justify="space-between">
-                      <HStack>
-                        <Avatar size="sm" name={currentClaim.author?.name || `사용자 ${currentClaim.user_id}`} />
-                        <VStack align="start" spacing={0}>
-                          <Text fontSize="sm" fontWeight="bold">
-                            {currentClaim.author?.name || `사용자 ${currentClaim.user_id}`}
-                          </Text>
-                          <Text fontSize="xs" color="gray.600">
-                            {currentClaim.author?.affiliation ? `${getPartyName(currentClaim.author.affiliation)} · ` : ''}Lv.{currentClaim.author?.level || 1}
-                          </Text>
-                        </VStack>
-                      </HStack>
-                      <HStack spacing={2}>
-                        <IconButton
-                          aria-label="좋아요"
-                          icon={<ArrowUpIcon />}
-                          size="sm"
-                          colorScheme={currentClaim.user_vote === 'like' ? 'green' : 'gray'}
-                          variant={currentClaim.user_vote === 'like' ? 'solid' : 'outline'}
-                          onClick={async () => {
-                            try {
-                              const result = await votesAPI.vote({
-                                claim_id: currentClaim.id,
-                                vote_type: 'like',
-                              })
-                              // 데이터 다시 로드
-                              loadData(true)
-                            } catch (error: any) {
-                              toast({
-                                title: '오류',
-                                description: error.message || '투표에 실패했습니다.',
-                                status: 'error',
-                                duration: 3000,
-                                isClosable: true,
-                              })
-                            }
-                          }}
-                        />
-                        <Text fontSize="sm" fontWeight="bold">
-                          {currentClaim.votes || 0}
+                      {/* 2. 본문 내용: 제목과 내용을 강조 */}
+                      <Box py={2}>
+                        <Heading size="md" mb={4} lineHeight="shorter" color="gray.800">
+                          {currentClaim.title}
+                        </Heading>
+                        <Text fontSize="lg" lineHeight="1.8" color="gray.700">
+                          {/* 근거가 있는 경우 텍스트 렌더링 함수 사용 (기존 로직 유지) */}
+                          {renderContentWithEvidence(currentClaim.content, currentClaim.evidence || [])}
                         </Text>
-                        <IconButton
-                          aria-label="싫어요"
-                          icon={<ArrowDownIcon />}
-                          size="sm"
-                          colorScheme={currentClaim.user_vote === 'dislike' ? 'red' : 'gray'}
-                          variant={currentClaim.user_vote === 'dislike' ? 'solid' : 'outline'}
-                          onClick={async () => {
-                            try {
-                              const result = await votesAPI.vote({
-                                claim_id: currentClaim.id,
-                                vote_type: 'dislike',
-                              })
-                              // 데이터 다시 로드
-                              loadData(true)
-                            } catch (error: any) {
-                              toast({
-                                title: '오류',
-                                description: error.message || '투표에 실패했습니다.',
-                                status: 'error',
-                                duration: 3000,
-                                isClosable: true,
-                              })
-                            }
-                          }}
-                        />
-                      </HStack>
-                    </HStack>
+                      </Box>
 
-                    <HStack justify="center" spacing={4}>
-                      <IconButton
-                        aria-label="이전 카드"
-                        icon={<ChevronLeftIcon />}
-                        onClick={() => setCurrentCardIndex((prev) => (prev > 0 ? prev - 1 : claims.length - 1))}
-                        isDisabled={claims.length <= 1}
-                      />
-                      <Button
-                        colorScheme="blue"
-                        onClick={() => setShowRebuttalModal(true)}
-                      >
-                        반박 작성
-                      </Button>
-                      <IconButton
-                        aria-label="다음 카드"
-                        icon={<ChevronRightIcon />}
-                        onClick={() => setCurrentCardIndex((prev) => (prev < claims.length - 1 ? prev + 1 : 0))}
-                        isDisabled={claims.length <= 1}
-                      />
-                    </HStack>
-                  </VStack>
-                </CardBody>
-              </Card>
+                      <Divider borderColor={currentClaim.type === 'pro' ? 'blue.200' : 'red.200'} />
+
+                      {/* 3. 하단 액션 바: 투표 및 네비게이션 버튼 */}
+                      <HStack justify="space-between" w="full">
+                        {/* 투표 버튼 그룹 */}
+                        <HStack spacing={4} bg="white" p={2} borderRadius="full" shadow="sm" border="1px solid" borderColor="gray.100">
+                          <IconButton
+                            aria-label="좋아요"
+                            icon={<ArrowUpIcon boxSize={5} />}
+                            size="sm"
+                            variant="ghost"
+                            colorScheme={currentClaim.user_vote === 'like' ? 'green' : 'gray'}
+                            color={currentClaim.user_vote === 'like' ? 'green.500' : 'gray.400'}
+                            onClick={async () => {
+                              /* 기존 투표 로직 유지 */
+                              try {
+                                await votesAPI.vote({
+                                  claim_id: currentClaim.id,
+                                  vote_type: 'like',
+                                })
+                                loadData(true)
+                              } catch (error: any) {
+                                toast({ title: '오류', status: 'error', description: error.message })
+                              }
+                            }}
+                          />
+                          <Text fontSize="md" fontWeight="bold" color={currentClaim.votes > 0 ? 'green.500' : currentClaim.votes < 0 ? 'red.500' : 'gray.500'}>
+                            {currentClaim.votes || 0}
+                          </Text>
+                          <IconButton
+                            aria-label="싫어요"
+                            icon={<ArrowDownIcon boxSize={5} />}
+                            size="sm"
+                            variant="ghost"
+                            colorScheme={currentClaim.user_vote === 'dislike' ? 'red' : 'gray'}
+                            color={currentClaim.user_vote === 'dislike' ? 'red.500' : 'gray.400'}
+                            onClick={async () => {
+                              /* 기존 투표 로직 유지 */
+                              try {
+                                await votesAPI.vote({
+                                  claim_id: currentClaim.id,
+                                  vote_type: 'dislike',
+                                })
+                                loadData(true)
+                              } catch (error: any) {
+                                toast({ title: '오류', status: 'error', description: error.message })
+                              }
+                            }}
+                          />
+                        </HStack>
+
+                        {/* 카드 넘기기 및 반박 버튼 */}
+                        <HStack spacing={3}>
+                          <IconButton
+                            aria-label="이전 카드"
+                            icon={<ChevronLeftIcon boxSize={6} />}
+                            variant="outline"
+                            colorScheme="gray"
+                            borderRadius="full"
+                            onClick={() => setCurrentCardIndex((prev) => (prev > 0 ? prev - 1 : claims.length - 1))}
+                            isDisabled={claims.length <= 1}
+                          />
+                          
+                          <Text fontSize="sm" fontWeight="bold" color="gray.500" minW="60px" textAlign="center">
+                            {currentCardIndex + 1} / {claims.length}
+                          </Text>
+
+                          <IconButton
+                            aria-label="다음 카드"
+                            icon={<ChevronRightIcon boxSize={6} />}
+                            variant="outline"
+                            colorScheme="gray"
+                            borderRadius="full"
+                            onClick={() => setCurrentCardIndex((prev) => (prev < claims.length - 1 ? prev + 1 : 0))}
+                            isDisabled={claims.length <= 1}
+                          />
+                          
+                          <Button
+                            colorScheme="blue"
+                            size="md"
+                            px={6}
+                            borderRadius="full"
+                            boxShadow="md"
+                            onClick={() => setShowRebuttalModal(true)}
+                            leftIcon={<span>💬</span>}
+                          >
+                            반박하기
+                          </Button>
+                        </HStack>
+                      </HStack>
+                    </VStack>
+                  </CardBody>
+                </Card>
               ) : null}
             </VStack>
           </Box>

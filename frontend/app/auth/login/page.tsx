@@ -103,9 +103,9 @@ export default function LoginPage() {
 
             <Text textAlign="center">
               계정이 없으신가요?{' '}
-              <Link href="/auth/register">
-                <ChakraLink color="blue.500">회원가입</ChakraLink>
-              </Link>
+              <ChakraLink as={Link} href="/auth/register" color="blue.500">
+                회원가입
+              </ChakraLink>
             </Text>
           </VStack>
         </Box>
