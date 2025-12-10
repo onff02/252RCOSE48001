@@ -2,17 +2,19 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 
-class UserCreate(BaseModel):
+class UserBase(BaseModel):
     username: str
+
+class UserCreate(BaseModel):
     password: str
-    political_party: Optional[str] = None
+    political_party: str
 
 class UserResponse(BaseModel):
     id: int
     username: str
-    political_party: Optional[str]
+    political_party: Optional[str] = None
     real_name: Optional[str]
-    affiliation: Optional[str]
+    affiliation: Optional[str] = None
     level: int
     
     model_config = {"from_attributes": True}

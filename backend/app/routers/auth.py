@@ -7,6 +7,7 @@ from jose import jwt
 from datetime import datetime, timedelta
 import os
 import hashlib
+import re
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -48,12 +49,24 @@ def get_password_hash(password):
     # bcrypt로 해시 (72바이트 제한 내에서 안전)
     return pwd_context.hash(prehashed)
 
+def validate_password(password: str):
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="비밀번호는 최소 8자 이상이어야 합니다.")
+    if not re.search(r"[a-zA-Z]", password):
+        raise HTTPException(status_code=400, detail="비밀번호에는 영문자가 포함되어야 합니다.")
+    if not re.search(r"\d", password):
+        raise HTTPException(status_code=400, detail="비밀번호에는 숫자가 포함되어야 합니다.")
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
+        raise HTTPException(status_code=400, detail="비밀번호에는 특수문자가 포함되어야 합니다.")
+
 @router.post("/register", response_model=schemas.UserResponse)
 def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     # Check if user exists
     db_user = db.query(models.User).filter(models.User.username == user.username).first()
     if db_user:
         raise HTTPException(status_code=400, detail="이미 존재하는 사용자입니다")
+    
+    validate_password(user.password)
     
     # Create new user
     hashed_password = get_password_hash(user.password)

@@ -4,6 +4,7 @@ from sqlalchemy import desc
 from typing import List, Optional
 from app import schemas, models
 from app.database import get_db
+from app.dependencies import get_current_user
 
 router = APIRouter(prefix="/api/topics", tags=["topics"])
 
@@ -53,8 +54,25 @@ def get_topics(
     return topics
 
 @router.post("/", response_model=schemas.TopicResponse)
-def create_topic(topic: schemas.TopicCreate, db: Session = Depends(get_db)):
-    db_topic = models.Topic(**topic.dict())
+def create_topic(
+    topic: schemas.TopicCreate, 
+    db: Session = Depends(get_db),
+    current_user: Optional[models.User] = Depends(get_current_user)
+):
+    if not current_user:
+        raise HTTPException(status_code=401, detail="로그인이 필요합니다")
+    
+    # 관리자 아이디 체크 (admin)
+    if current_user.username != "admin":
+        raise HTTPException(status_code=403, detail="관리자만 토론 주제를 생성할 수 있습니다")
+    
+    db_topic = models.Topic(
+        title=topic.title,
+        category=topic.category,
+        region=topic.region,
+        district=topic.district,
+        topic_type=topic.topic_type
+    )
     db.add(db_topic)
     db.commit()
     db.refresh(db_topic)

@@ -125,8 +125,8 @@ export const topicsAPI = {
 
 // 주장 API
 export const claimsAPI = {
-  getClaims: async (topicId: number) => {
-    return apiRequest<any[]>(`/api/claims/topic/${topicId}`)
+  getClaims: async (topicId: number, sortBy: string = 'best') => {
+    return apiRequest<any[]>(`/api/claims/topic/${topicId}?sort_by=${sortBy}`)
   },
 
   getClaim: async (claimId: number) => {

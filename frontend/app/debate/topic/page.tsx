@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Box,
   Container,
@@ -9,16 +9,18 @@ import {
   VStack,
   HStack,
   Text,
-  SimpleGrid,
   Badge,
   Card,
   CardBody,
   Spinner,
   useToast,
+  Icon
 } from '@chakra-ui/react'
 import Link from 'next/link'
 import { topicsAPI } from '@/lib/api'
 import UserInfo from '@/components/UserInfo'
+import { getUser } from '@/lib/auth' 
+import { InfoIcon } from '@chakra-ui/icons' // 정보 아이콘 추가
 
 const categories = [
   { id: 'politics', name: '정치' },
@@ -40,31 +42,50 @@ export default function TopicDebatePage() {
   const [selectedCategory, setSelectedCategory] = useState('politics')
   const [sortBy, setSortBy] = useState('best')
   const [topics, setTopics] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(true) // 초기 로딩 상태 true
+  const [user, setUser] = useState<any>(null)
 
   useEffect(() => {
-    loadTopics()
-  }, [selectedCategory, sortBy])
+    const currentUser = getUser()
+    setUser(currentUser)
+  }, [])
 
-  const loadTopics = async () => {
+  const loadTopics = useCallback(async () => {
     setIsLoading(true)
     try {
       const data = await topicsAPI.getTopics(selectedCategory, undefined, undefined, 'topic', sortBy)
-      setTopics(data)
+      // 데이터가 배열인지 확인하고 설정, 아니면 빈 배열
+      if (Array.isArray(data)) {
+        setTopics(data)
+      } else {
+        setTopics([])
+      }
     } catch (error: any) {
+      console.error('Failed to load topics:', error)
       toast({
-        title: '오류',
-        description: error.message || '주제를 불러오는데 실패했습니다.',
-        status: 'error',
+        title: '알림',
+        description: '주제 목록을 불러오지 못했거나 데이터가 없습니다.',
+        status: 'info', // 에러보다는 info로 부드럽게 처리
         duration: 3000,
         isClosable: true,
       })
-      // 에러 발생 시 빈 배열로 설정
-      setTopics([])
+      setTopics([]) // 에러 시 빈 배열로 초기화
     } finally {
-      setIsLoading(false)
+      setIsLoading(false) // 성공하든 실패하든 로딩 상태 반드시 해제
     }
-  }
+  }, [selectedCategory, sortBy, toast])
+
+  useEffect(() => {
+    loadTopics()
+  }, [loadTopics])
+
+  // 공통으로 사용할 "데이터 없음" 컴포넌트
+  const EmptyState = ({ message }: { message: string }) => (
+    <VStack py={10} spacing={3} color="gray.500">
+      <Icon as={InfoIcon} w={8} h={8} color="gray.400" />
+      <Text fontSize="md">{message}</Text>
+    </VStack>
+  )
 
   return (
     <Box minH="100vh" bg="gray.50">
@@ -76,12 +97,12 @@ export default function TopicDebatePage() {
             </Heading>
             <HStack spacing={2}>
               <UserInfo />
-              <Link href="/write">
-                <Button colorScheme="green">토론 주제 생성</Button>
-              </Link>
-              <Link href="/">
-                <Button variant="outline">메인으로</Button>
-              </Link>
+              {/* 관리자(admin) 계정일 때만 주제 생성 버튼 표시 */}
+              {user && user.username === 'admin' && (
+                <Link href="/write?type=topic">
+                  <Button colorScheme="green">토론 주제 생성</Button>
+                </Link>
+              )}
             </HStack>
           </HStack>
 
@@ -105,55 +126,53 @@ export default function TopicDebatePage() {
             </VStack>
           </Box>
 
+          {/* HOT 5 주제 섹션 */}
           <Box bg="white" p={6} borderRadius="lg" boxShadow="md">
-                    <HStack justify="space-between" mb={4}>
-                      <Heading as="h2" size="md">
-                        {categories.find((c) => c.id === selectedCategory)?.name} 게시판 HOT 5 주제
-                      </Heading>
-                      <HStack spacing={2}>
-                        {sortOptions.map((option) => (
-                          <Button
-                            key={option.id}
-                            size="sm"
-                            variant={sortBy === option.id ? 'solid' : 'outline'}
-                            colorScheme={sortBy === option.id ? 'blue' : 'gray'}
-                            onClick={() => {
-                              setSortBy(option.id)
-                              // sortBy가 변경되면 useEffect가 자동으로 loadTopics를 호출함
-                            }}
-                          >
-                            {option.name}
-                          </Button>
-                        ))}
-                      </HStack>
-                    </HStack>
+            <HStack justify="space-between" mb={4}>
+              <Heading as="h2" size="md">
+                {categories.find((c) => c.id === selectedCategory)?.name} 게시판 HOT 5 주제
+              </Heading>
+              <HStack spacing={2}>
+                {sortOptions.map((option) => (
+                  <Button
+                    key={option.id}
+                    size="sm"
+                    variant={sortBy === option.id ? 'solid' : 'outline'}
+                    colorScheme={sortBy === option.id ? 'blue' : 'gray'}
+                    onClick={() => setSortBy(option.id)}
+                  >
+                    {option.name}
+                  </Button>
+                ))}
+              </HStack>
+            </HStack>
 
             {isLoading ? (
-              <Box textAlign="center" py={8}>
-                <Spinner size="xl" />
+              <Box textAlign="center" py={10}>
+                <Spinner size="lg" color="brand.500" />
               </Box>
-            ) : topics.length === 0 ? (
-              <Text textAlign="center" py={8} color="gray.500">
-                등록된 주제가 없습니다.
-              </Text>
+            ) : (!topics || topics.length === 0) ? (
+              <EmptyState message="등록된 HOT 주제가 없습니다." />
             ) : (
               <VStack spacing={3} align="stretch">
                 {topics.slice(0, 5).map((topic, index) => (
-                  <Card key={topic.id} _hover={{ boxShadow: 'lg' }} cursor="pointer">
-                    <CardBody>
+                  <Card key={topic.id} _hover={{ boxShadow: 'lg', borderColor: 'brand.500' }} cursor="pointer" variant="outline" borderColor="gray.200">
+                    <CardBody py={4}>
                       <HStack justify="space-between">
                         <VStack align="start" spacing={1}>
                           <HStack>
-                            <Badge colorScheme="red">HOT</Badge>
-                            <Text fontWeight="bold">{index + 1}. {topic.title}</Text>
+                            <Badge colorScheme="red" variant="solid">HOT</Badge>
+                            <Text fontWeight="bold" fontSize="lg">{index + 1}. {topic.title}</Text>
                           </HStack>
-                          <Text fontSize="sm" color="gray.600">
-                            {new Date(topic.created_at).toLocaleDateString('ko-KR')}
-                          </Text>
+                          <HStack spacing={2} fontSize="sm" color="gray.500">
+                            <Text>{new Date(topic.created_at).toLocaleDateString('ko-KR')}</Text>
+                            <Text>•</Text>
+                            <Text>참여 {topic.claims?.length || 0}명</Text>
+                          </HStack>
                         </VStack>
                         <Link href={`/debate/topic/${topic.id}`}>
-                          <Button colorScheme="blue" size="sm">
-                            토론 참여
+                          <Button colorScheme="blue" size="sm" variant="ghost">
+                            토론 참여 &rarr;
                           </Button>
                         </Link>
                       </HStack>
@@ -164,26 +183,26 @@ export default function TopicDebatePage() {
             )}
           </Box>
 
+          {/* 전체 주제 목록 섹션 */}
           <Box bg="white" p={6} borderRadius="lg" boxShadow="md">
             <Heading as="h2" size="md" mb={4}>
               전체 주제 목록
             </Heading>
+            
             {isLoading ? (
-              <Box textAlign="center" py={8}>
-                <Spinner size="xl" />
+              <Box textAlign="center" py={10}>
+                <Spinner size="lg" color="brand.500" />
               </Box>
-            ) : topics.length === 0 ? (
-              <Text textAlign="center" py={8} color="gray.500">
-                등록된 주제가 없습니다.
-              </Text>
+            ) : (!topics || topics.length === 0) ? (
+              <EmptyState message="등록된 주제가 없습니다." />
             ) : (
               <VStack spacing={3} align="stretch">
                 {topics.map((topic) => (
-                  <Card key={topic.id} _hover={{ boxShadow: 'lg' }} cursor="pointer">
-                    <CardBody>
+                  <Card key={topic.id} _hover={{ boxShadow: 'lg', borderColor: 'blue.400' }} cursor="pointer" variant="outline" borderColor="gray.200">
+                    <CardBody py={4}>
                       <HStack justify="space-between">
                         <VStack align="start" spacing={1}>
-                          <Text fontWeight="bold">{topic.title}</Text>
+                          <Text fontWeight="bold" fontSize="md">{topic.title}</Text>
                           <Text fontSize="sm" color="gray.600">
                             {new Date(topic.created_at).toLocaleDateString('ko-KR')}
                           </Text>
@@ -205,4 +224,3 @@ export default function TopicDebatePage() {
     </Box>
   )
 }
-

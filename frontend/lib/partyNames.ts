@@ -1,3 +1,15 @@
+export const partyNames: Record<string, string> = {
+  'Democratic': '더불어민주당',
+  'People_Power': '국민의힘',
+  'Rebuilding_Korea': '조국혁신당',
+  'The_Progressive': '진보당',
+  'Reform': '개혁신당',
+  'Basic_Income': '기본소득당',
+  'The_Social_Democratic': '사회민주당',
+  'Minor': '기타',
+  'None': '없음',
+}
+
 // 정당 이름 매핑 (영어 -> 한글)
 export const partyNameMap: Record<string, string> = {
   'Democratic': '더불어민주당',
