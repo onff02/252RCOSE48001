@@ -98,8 +98,9 @@ def create_claim(
             db_evidence = models.Evidence(
                 claim_id=db_claim.id,
                 source=ev.get('source', ''),
-                publisher=ev.get('publisher', ''),
-                text=ev.get('text', '')
+                publisher=ev.get('publisher', 'User'),
+                text=ev.get('text'),
+                url=ev.get("url")
             )
             db.add(db_evidence)
         db.commit()
@@ -171,7 +172,32 @@ def get_claim_evidence(claim_id: int, db: Session = Depends(get_db)):
             "id": e.id,
             "source": e.source,
             "publisher": e.publisher,
-            "text": e.text
+            "text": e.text,
+            "url": e.url
         }
         for e in evidence
     ]
+
+@router.delete("/{claim_id}")
+def delete_claim(
+    claim_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    if not current_user:
+        raise HTTPException(status_code=401, detail="로그인이 필요합니다")
+
+    claim = db.query(models.Claim).filter(models.Claim.id == claim_id).first()
+    if not claim:
+        raise HTTPException(status_code=404, detail="글을 찾을 수 없습니다")
+
+    # 작성자 본인 또는 관리자(level 999)만 삭제 가능
+    if claim.user_id != current_user.id and current_user.level < 999:
+        raise HTTPException(status_code=403, detail="삭제 권한이 없습니다")
+
+    # 연관된 반박, 투표, 근거 등은 DB 설정(Cascade)에 따라 자동 삭제되거나
+    # 수동으로 지워야 할 수 있습니다. 여기서는 글 자체 삭제만 처리합니다.
+    db.delete(claim)
+    db.commit()
+    
+    return {"message": "삭제되었습니다"}

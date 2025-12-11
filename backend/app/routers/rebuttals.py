@@ -14,7 +14,11 @@ def get_rebuttals_by_claim(
     db: Session = Depends(get_db),
     current_user: Optional[models.User] = Depends(get_current_user)
 ):
-    rebuttals = db.query(models.Rebuttal).options(joinedload(models.Rebuttal.user)).filter(models.Rebuttal.claim_id == claim_id).all()
+    rebuttals = db.query(models.Rebuttal).options(
+        joinedload(models.Rebuttal.user),
+        joinedload(models.Rebuttal.evidence)
+    ).filter(models.Rebuttal.claim_id == claim_id).all()
+
     result = []
     for rebuttal in rebuttals:
         rebuttal_dict = {
@@ -22,11 +26,24 @@ def get_rebuttals_by_claim(
             "claim_id": rebuttal.claim_id,
             "parent_id": rebuttal.parent_id,
             "user_id": rebuttal.user_id,
+            "title": rebuttal.title,
             "content": rebuttal.content,
             "type": rebuttal.type,
             "votes": rebuttal.votes,
             "created_at": rebuttal.created_at,
         }
+
+        rebuttal_dict["evidence"] = [
+            {
+                "id": e.id,
+                "source": e.source,
+                "publisher": e.publisher,
+                "text": e.text,
+                "url": e.url
+            }
+            for e in rebuttal.evidence
+        ]
+
         # 사용자 정보 추가
         if rebuttal.user:
             rebuttal_dict["author"] = {
@@ -61,11 +78,47 @@ def create_rebuttal(
         claim_id=rebuttal.claim_id,
         parent_id=rebuttal.parent_id,
         user_id=current_user.id,
+        title=rebuttal.title,
         content=rebuttal.content,
         type=rebuttal.type
     )
     db.add(db_rebuttal)
     db.commit()
+    db.refresh(db_rebuttal)
+
+    if rebuttal.evidence:
+        for ev in rebuttal.evidence:
+            db_ev = models.Evidence(
+                rebuttal_id=db_rebuttal.id, # 반박 ID에 연결
+                source=ev.get('source', ''),
+                publisher=ev.get('publisher', ''),
+                text=ev.get('text', ''),
+                url=ev.get('url', '')
+            )
+            db.add(db_ev)
+        db.commit()
+
+    target_user_id = None
+    topic_link = f"/debate/topic/{db_rebuttal.claim.topic_id}"
+    
+    if rebuttal.parent_id:
+        # 재반박인 경우: 원 댓글 작성자에게 알림
+        parent = db.query(models.Rebuttal).filter(models.Rebuttal.id == rebuttal.parent_id).first()
+        if parent:
+            target_user_id = parent.user_id
+            msg = "내 의견에 재반박이 달렸습니다."
+    else:
+        # 반박인 경우: 주장 작성자에게 알림
+        claim = db.query(models.Claim).filter(models.Claim.id == rebuttal.claim_id).first()
+        if claim:
+            target_user_id = claim.user_id
+            msg = "내 주장에 반박이 달렸습니다."
+            
+    if target_user_id and target_user_id != current_user.id: # 본인 글엔 알림 X
+        noti = models.Notification(user_id=target_user_id, content=msg, link=topic_link)
+        db.add(noti)
+        db.commit()
+
     db.refresh(db_rebuttal)
     
     # 사용자 정보를 다시 로드
@@ -77,6 +130,7 @@ def create_rebuttal(
         "claim_id": db_rebuttal.claim_id,
         "parent_id": db_rebuttal.parent_id,
         "user_id": db_rebuttal.user_id,
+        "title": db_rebuttal.title,
         "content": db_rebuttal.content,
         "type": db_rebuttal.type,
         "votes": db_rebuttal.votes,
@@ -93,8 +147,30 @@ def create_rebuttal(
 
 @router.get("/{rebuttal_id}", response_model=schemas.RebuttalResponse)
 def get_rebuttal(rebuttal_id: int, db: Session = Depends(get_db)):
-    rebuttal = db.query(models.Rebuttal).filter(models.Rebuttal.id == rebuttal_id).first()
+    rebuttal = db.query(models.Rebuttal).options(
+        joinedload(models.Rebuttal.evidence)
+    ).filter(models.Rebuttal.id == rebuttal_id).first()
     if not rebuttal:
         raise HTTPException(status_code=404, detail="반박을 찾을 수 없습니다")
     return rebuttal
 
+@router.delete("/{rebuttal_id}")
+def delete_rebuttal(
+    rebuttal_id: int,
+    db: Session = Depends(get_db),
+    current_user: Optional[models.User] = Depends(get_current_user)
+):
+    if not current_user:
+        raise HTTPException(status_code=401, detail="로그인이 필요합니다")
+    
+    rebuttal = db.query(models.Rebuttal).filter(models.Rebuttal.id == rebuttal_id).first()
+    if not rebuttal:
+        raise HTTPException(status_code=404, detail="반박을 찾을 수 없습니다")
+        
+    # 작성자 본인 또는 관리자(level 999)만 삭제 가능
+    if rebuttal.user_id != current_user.id and current_user.level < 999:
+        raise HTTPException(status_code=403, detail="삭제 권한이 없습니다")
+        
+    db.delete(rebuttal)
+    db.commit()
+    return {"message": "삭제되었습니다"}

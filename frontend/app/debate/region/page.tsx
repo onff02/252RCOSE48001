@@ -20,9 +20,22 @@ import {
   TabPanel,
   Spinner,
   useToast,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalCloseButton,
+  ModalFooter,
+  FormControl,
+  FormLabel,
+  Input,
+  useDisclosure
 } from '@chakra-ui/react'
 import Link from 'next/link'
 import { topicsAPI } from '@/lib/api'
+import { getUser } from '@/lib/auth'
+import UserInfo from '@/components/UserInfo'
 
 const regions = {
   seoul: {
@@ -41,16 +54,37 @@ const regions = {
 
 export default function RegionDebatePage() {
   const toast = useToast()
+  const { isOpen, onOpen, onClose } = useDisclosure()
+  
   const [selectedRegion, setSelectedRegion] = useState('seoul')
   const [selectedDistrict, setSelectedDistrict] = useState('서울 전체')
   const [activeTab, setActiveTab] = useState(0)
   const [topics, setTopics] = useState<any[]>([])
   const [pledges, setPledges] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [user, setUser] = useState<any>(null)
+
+  // 주제 생성용 상태
+  const [newTopicTitle, setNewTopicTitle] = useState('')
+  const [createRegion, setCreateRegion] = useState('seoul')
+  const [createDistrict, setCreateDistrict] = useState('서울 전체')
+  const [isCreating, setIsCreating] = useState(false)
+
+  useEffect(() => {
+    setUser(getUser())
+  }, [])
 
   useEffect(() => {
     loadData()
   }, [selectedRegion, selectedDistrict, activeTab])
+
+  // 모달이 열릴 때 기본값 설정
+  useEffect(() => {
+    if (isOpen) {
+      setCreateRegion(selectedRegion)
+      setCreateDistrict(selectedDistrict)
+    }
+  }, [isOpen, selectedRegion, selectedDistrict])
 
   const loadData = async () => {
     setIsLoading(true)
@@ -97,23 +131,47 @@ export default function RegionDebatePage() {
     }
   }
 
+  const handleCreateTopic = async () => {
+    if (!newTopicTitle.trim()) {
+      toast({ title: '입력 오류', description: '주제명을 입력해주세요.', status: 'warning' })
+      return
+    }
+    setIsCreating(true)
+    try {
+      const type = activeTab === 0 ? 'region' : 'pledge'
+      
+      await topicsAPI.createTopic({
+        title: newTopicTitle,
+        region: createRegion,
+        district: createDistrict,
+        topic_type: type
+      })
+      
+      toast({ title: '생성 완료', description: '새로운 지역 토론 주제가 생성되었습니다.', status: 'success' })
+      onClose()
+      setNewTopicTitle('')
+      loadData()
+    } catch (error: any) {
+      toast({ title: '생성 실패', description: error.message || '오류가 발생했습니다.', status: 'error' })
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
   return (
     <Box minH="100vh" bg="gray.50">
       <Container maxW="container.xl" py={8}>
         <VStack spacing={6} align="stretch">
           <HStack justify="space-between">
             <Heading as="h1" size="xl">
-              토론 게시판
+              우리 동네 토론 게시판
             </Heading>
+            
             <HStack spacing={2}>
-              <Link 
-                href={`/write?region=${selectedRegion}&district=${encodeURIComponent(selectedDistrict)}&topic_type=${activeTab === 0 ? 'region' : 'pledge'}`}
-              >
-                <Button colorScheme="green">토론 주제 생성</Button>
-              </Link>
-              <Link href="/">
-                <Button variant="outline">메인으로</Button>
-              </Link>
+              <UserInfo />
+              {user && user.username === 'admin' && (
+                <Button colorScheme="green" onClick={onOpen}>토론 주제 생성</Button>
+              )}
             </HStack>
           </HStack>
 
@@ -186,24 +244,29 @@ export default function RegionDebatePage() {
                       </Text>
                     ) : (
                       topics.map((topic) => (
-                        <Card key={topic.id} _hover={{ boxShadow: 'lg' }} cursor="pointer">
-                          <CardBody>
-                            <HStack justify="space-between">
-                              <VStack align="start" spacing={1}>
-                                <Text fontWeight="bold">{topic.title}</Text>
-                                <HStack spacing={4} fontSize="sm" color="gray.600">
-                                  <Text>{new Date(topic.created_at).toLocaleDateString('ko-KR')}</Text>
-                                  <Text>지역: {topic.district || topic.region || '전체'}</Text>
-                                </HStack>
-                              </VStack>
-                              <Link href={`/debate/topic/${topic.id}`}>
-                                <Button colorScheme="blue" size="sm">
-                                  토론 참여
-                                </Button>
-                              </Link>
-                            </HStack>
-                          </CardBody>
-                        </Card>
+                        // [수정] 카드 전체 Link 적용 및 버튼 제거
+                        <Link href={`/debate/topic/${topic.id}`} key={topic.id} style={{ textDecoration: 'none' }}>
+                          <Card 
+                            _hover={{ boxShadow: 'lg', borderColor: 'brand.500', transform: 'translateY(-2px)' }} 
+                            transition="all 0.2s" 
+                            cursor="pointer"
+                            variant="outline" 
+                            borderColor="gray.200"
+                          >
+                            <CardBody>
+                              <HStack justify="space-between">
+                                <VStack align="start" spacing={1} w="100%">
+                                  <Text fontWeight="bold">{topic.title}</Text>
+                                  <HStack spacing={4} fontSize="sm" color="gray.600">
+                                    <Text>{new Date(topic.created_at).toLocaleDateString('ko-KR')}</Text>
+                                    <Text>지역: {topic.district || topic.region || '전체'}</Text>
+                                  </HStack>
+                                </VStack>
+                                {/* 토론 참여 버튼 제거됨 */}
+                              </HStack>
+                            </CardBody>
+                          </Card>
+                        </Link>
                       ))
                     )}
                   </VStack>
@@ -231,24 +294,31 @@ export default function RegionDebatePage() {
                         </Text>
                       ) : (
                         pledges.map((pledge) => (
-                          <Card key={pledge.id} _hover={{ boxShadow: 'lg' }} cursor="pointer">
-                            <CardBody>
-                              <VStack align="start" spacing={2}>
-                                <HStack>
-                                  <Badge colorScheme="purple">{pledge.district || '전체'}</Badge>
-                                  <Text fontWeight="bold">{pledge.title}</Text>
-                                </HStack>
-                                <Text fontSize="sm" color="gray.600">
-                                  {new Date(pledge.created_at).toLocaleDateString('ko-KR')}
-                                </Text>
-                                <Link href={`/debate/topic/${pledge.id}`}>
-                                  <Button colorScheme="blue" size="sm">
-                                    찬반 토론 참여
-                                  </Button>
-                                </Link>
-                              </VStack>
-                            </CardBody>
-                          </Card>
+                          // [수정] 카드 전체 Link 적용 및 버튼 제거
+                          <Link href={`/debate/topic/${pledge.id}`} key={pledge.id} style={{ textDecoration: 'none' }}>
+                            <Card 
+                              _hover={{ boxShadow: 'lg', borderColor: 'brand.500', transform: 'translateY(-2px)' }} 
+                              transition="all 0.2s" 
+                              cursor="pointer"
+                              variant="outline" 
+                              borderColor="gray.200"
+                            >
+                              <CardBody>
+                                <VStack align="start" spacing={2} w="100%">
+                                  <HStack w="100%" justify="space-between">
+                                    <HStack>
+                                      <Badge colorScheme="purple">{pledge.district || '전체'}</Badge>
+                                      <Text fontWeight="bold">{pledge.title}</Text>
+                                    </HStack>
+                                  </HStack>
+                                  <Text fontSize="sm" color="gray.600">
+                                    {new Date(pledge.created_at).toLocaleDateString('ko-KR')}
+                                  </Text>
+                                  {/* 토론 참여 버튼 제거됨 */}
+                                </VStack>
+                              </CardBody>
+                            </Card>
+                          </Link>
                         ))
                       )}
                     </VStack>
@@ -259,7 +329,65 @@ export default function RegionDebatePage() {
           </Box>
         </VStack>
       </Container>
+
+      {/* 모달 (기존과 동일) */}
+      <Modal isOpen={isOpen} onClose={onClose}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>
+            {activeTab === 0 ? '지역 현안 주제 생성' : '공약 토론 주제 생성'}
+          </ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack spacing={4}>
+              <FormControl isRequired>
+                <FormLabel>주제명</FormLabel>
+                <Input 
+                  placeholder="토론할 주제를 입력하세요" 
+                  value={newTopicTitle}
+                  onChange={(e) => setNewTopicTitle(e.target.value)}
+                />
+              </FormControl>
+              <FormControl>
+                <FormLabel>지역 선택 (광역)</FormLabel>
+                <Select
+                  value={createRegion}
+                  onChange={(e) => {
+                    setCreateRegion(e.target.value)
+                    const firstDistrict = regions[e.target.value as keyof typeof regions].districts[0]
+                    setCreateDistrict(firstDistrict)
+                  }}
+                >
+                  {Object.entries(regions).map(([key, value]) => (
+                    <option key={key} value={key}>
+                      {value.name}
+                    </option>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl>
+                <FormLabel>세부 지역 (기초)</FormLabel>
+                <Select
+                  value={createDistrict}
+                  onChange={(e) => setCreateDistrict(e.target.value)}
+                >
+                  {regions[createRegion as keyof typeof regions].districts.map((district) => (
+                    <option key={district} value={district}>
+                      {district}
+                    </option>
+                  ))}
+                </Select>
+              </FormControl>
+            </VStack>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={onClose}>취소</Button>
+            <Button colorScheme="green" onClick={handleCreateTopic} isLoading={isCreating}>
+              생성하기
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Box>
   )
 }
-

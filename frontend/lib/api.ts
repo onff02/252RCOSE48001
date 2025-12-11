@@ -149,6 +149,12 @@ export const claimsAPI = {
       body: JSON.stringify(claim),
     })
   },
+
+  deleteClaim: async (claimId: number) => {
+    return apiRequest<{ message: string }>(`/api/claims/${claimId}`, {
+      method: 'DELETE',
+    })
+  },
 }
 
 // 반박 API
@@ -160,12 +166,20 @@ export const rebuttalsAPI = {
   createRebuttal: async (rebuttal: {
     claim_id: number
     parent_id?: number
+    title: string
     content: string
     type: string
+    evidence?: any[]
   }) => {
     return apiRequest<any>('/api/rebuttals', {
       method: 'POST',
       body: JSON.stringify(rebuttal),
+    })
+  },
+
+  deleteRebuttal: async (rebuttalId: number) => {
+    return apiRequest<{ message: string }>(`/api/rebuttals/${rebuttalId}`, { // 백엔드 rebuttals.py에도 delete 구현 필요
+      method: 'DELETE',
     })
   },
 }
@@ -201,3 +215,20 @@ export const aiAPI = {
   },
 }
 
+export const commonAPI = {
+  deleteContent: async (type: 'claim' | 'rebuttal', id: number) => {
+    // endpoint 예: /api/claims/1 or /api/rebuttals/1
+    return apiRequest<any>(`/api/${type}s/${id}`, { method: 'DELETE' })
+  },
+  
+  reportContent: async (type: 'claim' | 'rebuttal', id: number, reason: string) => {
+    return apiRequest<any>('/api/reports', {
+      method: 'POST',
+      body: JSON.stringify({ target_type: type, target_id: id, reason })
+    })
+  },
+
+  getNotifications: async () => {
+    return apiRequest<any[]>('/api/notifications')
+  }
+}
